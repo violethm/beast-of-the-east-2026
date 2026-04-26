@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beast of the East — Cumbria 2018</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#0a0a08;
+  display:flex; align-items:center; justify-content:center;
+  min-height:100vh;
+  font-family:'VT323','Courier New',monospace;
+  color:#e0d8c8;
+  overflow:hidden;
+}
+#wrap {
+  position:relative; width:960px; height:640px;
+  box-shadow:0 0 60px rgba(0,0,0,0.95);
+}
+canvas { display:block; }
+#ui {
+  position:absolute; top:0; right:0; width:200px; height:640px;
+  background:#141410; border-left:3px solid #2e2e24;
+  display:flex; flex-direction:column; padding:10px; gap:7px;
+}
+.ubox {
+  border:2px solid #2e2e24; padding:6px 8px; background:#0e0e0a;
+}
+.ulabel {
+  font-size:11px; color:#5a5a48; text-transform:uppercase;
+  letter-spacing:2px; margin-bottom:2px;
+}
+.uval { font-size:24px; color:#c0b898; line-height:1.1; }
+.uval.g { color:#78a058; }
+.uval.r { color:#b85838; }
+#action-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+#action-title {
+  font-size:12px; color:#787860; text-transform:uppercase;
+  letter-spacing:1px; border-bottom:1px solid #2e2e24;
+  padding-bottom:4px; margin-bottom:5px;
+}
+#action-area { display:flex; flex-direction:column; gap:4px; overflow-y:auto; flex:1; }
+.abt {
+  font-family:'VT323',monospace; font-size:14px;
+  padding:5px 7px; background:#181814; color:#b8b090;
+  border:2px solid #383828; cursor:pointer; text-align:left; width:100%;
+  line-height:1.2;
+}
+.abt:hover:not(:disabled) { background:#222018; border-color:#686848; }
+.abt:disabled { color:#3a3a2c; border-color:#202018; cursor:not-allowed; }
+.abt .sub { font-size:10px; color:#565648; display:block; margin-top:1px; }
+.abt.sel { border-color:#a09060; color:#d0c890; }
+#modal-ov {
+  display:none; position:absolute; inset:0;
+  background:rgba(0,0,0,0.75); z-index:100;
+  align-items:center; justify-content:center;
+}
+#modal-box {
+  background:#161612; border:3px solid #686848;
+  padding:22px; max-width:360px; text-align:center;
+}
+#modal-box h2 { font-size:24px; color:#c0b898; margin-bottom:8px; }
+#modal-box p { font-size:16px; color:#9a9278; line-height:1.4; margin-bottom:12px; }
+.mbt {
+  font-family:'VT323',monospace; font-size:19px;
+  padding:5px 18px; background:#222018; color:#c0b898;
+  border:2px solid #686848; cursor:pointer; margin:3px;
+}
+.mbt:hover { background:#2e2a1e; }
+#screen {
+  display:flex; position:absolute; inset:0;
+  background:rgba(6,6,4,0.97); z-index:200;
+  align-items:center; justify-content:center;
+  flex-direction:column; text-align:center; padding:28px;
+}
+#screen h1 { font-size:54px; color:#c0b898; line-height:1; margin-bottom:4px; }
+#screen .sub { font-size:21px; color:#706a54; margin-bottom:18px; }
+#screen p { font-size:17px; color:#9a9278; max-width:520px; line-height:1.5; margin-bottom:10px; }
+#screen .stark { font-size:18px; color:#b85030; margin:12px 0; line-height:1.4; }
+.bbtn {
+  font-family:'VT323',monospace; font-size:24px;
+  padding:9px 32px; background:#222018; color:#c0b898;
+  border:3px solid #787858; cursor:pointer; margin-top:14px;
+}
+.bbtn:hover { background:#2e2a1e; }
+#lb { font-size:15px; color:#786e58; margin-top:10px; line-height:1.6; }
+#sbar {
+  position:absolute; top:0; left:0; width:760px; height:4px;
+  background:#0a0a08; z-index:10;
+}
+#sprog {
+  height:100%; width:0%;
+  background:linear-gradient(to right,#3870b8,#90b8e0);
+}
+#phase-tag {
+  position:absolute; top:7px; left:8px;
+  font-size:13px; color:rgba(190,210,240,0.7);
+  text-shadow:0 0 6px rgba(150,190,240,0.5);
+  pointer-events:none; z-index:11;
+}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="760" height="640"></canvas>
+  <div id="sbar"><div id="sprog"></div></div>
+  <div id="phase-tag"></div>
+
+  <div id="ui">
+    <div class="ubox">
+      <div class="ulabel">Date</div>
+      <div class="uval" id="u-date">24 Feb 2018</div>
+    </div>
+    <div class="ubox">
+      <div class="ulabel">Sheep Saved</div>
+      <div class="uval g" id="u-saved">0</div>
+    </div>
+    <div class="ubox">
+      <div class="ulabel">Sheep Lost</div>
+      <div class="uval r" id="u-lost">0</div>
+    </div>
+    <div class="ubox">
+      <div class="ulabel">Storm</div>
+      <div class="uval" id="u-wave">—</div>
+    </div>
+    <div id="action-wrap">
+      <div id="action-title">Actions</div>
+      <div id="action-area">
+        <p style="font-size:12px;color:#3e3e30;line-height:1.4">Click the map to direct your sheepdog. Herd sheep into open barns before the storm.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-ov">
+    <div id="modal-box">
+      <h2 id="m-title">—</h2>
+      <p id="m-body">—</p>
+      <button class="mbt" onclick="closeModal()">OK</button>
+    </div>
+  </div>
+
+  <div id="screen"><!-- populated by JS --></div>
+</div>
+
+<!-- AUDIO PLACEHOLDER: embed waulking song audio file here -->
+<audio id="bgMusic" loop>
+  <!-- <source src="your-waulking-song.mp3" type="audio/mpeg"> -->
+  <!-- Example: <source src="./waulking.mp3" type="audio/mpeg"> -->
+</audio>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  BEAST OF THE EAST — Cumbria 2018
+//  Single-file browser game
+// ═══════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = 760, H = 640;
+
+// ── TERRAIN ─────────────────────────────────────────────
+const T = { COAST:0, FARM:1, VALLEY:2, FELL:3, LAKE:4 };
+const TCOL = ['#6e808c','#8aaa60','#789a50','#5a6848','#3e6070'];
+const TRISK = [0.2, 0.25, 0.45, 0.85, 0];
+const TILE = 8;
+
+// ── SHEEP TYPES ─────────────────────────────────────────
+const STYPES = ['standard','lamb','ewe','old'];
+const SCNT   = {standard:4, lamb:2, ewe:8, old:3};
+const SSPEED = {standard:1.0, lamb:1.5, ewe:0.8, old:0.6};
+
+// ── BARN LOCATIONS ──────────────────────────────────────
+const BARN_DEF = [
+  {name:'Hutton Farm',   x:395, y:190},
+  {name:'Reagill Barn',  x:510, y:345},
+  {name:'Fell End Farm', x:228, y:548},
+  {name:'Shap Common',   x:478, y:472},
+  {name:'Dufton Pike',   x:598, y:262},
+];
+
+// ── GAME STATE ──────────────────────────────────────────
+let G, terrainMap, tcache, knitPat;
+
+function rnd(a,b){ return a + Math.random()*(b-a); }
+function dist(a,b){ return Math.hypot(a.x-b.x, a.y-b.y); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+function shuffle(a){ const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+
+// ── TERRAIN GENERATION ──────────────────────────────────
+function vnoise(x,y,s=0){
+  const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+  const h=n=>{let v=(n^(n<<13)^s)*0x9e3779b9;v=(v^(v>>16))*0x85ebca6b;v=(v^(v>>13))*0xc2b2ae35;return((v^(v>>16))&0xffff)/0xffff;};
+  const aa=h(xi+yi*57),ba=h(xi+1+yi*57),ab=h(xi+(yi+1)*57),bb=h(xi+1+(yi+1)*57);
+  const lx=xf*xf*(3-2*xf),ly=yf*yf*(3-2*yf);
+  return aa+(ba-aa)*lx+(ab-aa)*ly+(aa-ba-ab+bb)*lx*ly;
+}
+
+function terrainAt(nx,ny){
+  // Lakes: Windermere, Ullswater, Bassenthwaite, Thirlmere, Coniston
+  const lakes=[
+    {cx:0.285,cy:0.685,rx:0.022,ry:0.072},
+    {cx:0.415,cy:0.415,rx:0.018,ry:0.055},
+    {cx:0.215,cy:0.315,rx:0.016,ry:0.062},
+    {cx:0.298,cy:0.478,rx:0.012,ry:0.048},
+    {cx:0.198,cy:0.645,rx:0.013,ry:0.044},
+  ];
+  for(const l of lakes){
+    if((nx-l.cx)**2/l.rx**2+(ny-l.cy)**2/l.ry**2<1) return T.LAKE;
+  }
+  // Solway coast (NW)
+  if(nx<0.10) return T.COAST;
+  if(ny<0.16 && nx<0.38) return T.COAST;
+  // Morecambe Bay (S)
+  if(ny>0.91 && nx<0.52) return T.COAST;
+
+  // Lake District fells (centre-left)
+  const ldx=0.268, ldy=0.512;
+  const ld=Math.sqrt((nx-ldx)**2*1.8+(ny-ldy)**2) + (vnoise(nx*9,ny*9,42)-0.5)*0.07;
+  if(ld<0.21) return T.FELL;
+
+  // Pennines (E)
+  if(nx>0.78 && ny>0.18 && ny<0.88) return T.FELL;
+
+  // Shap Fell corridor
+  if(nx>0.50 && nx<0.74 && ny>0.43 && ny<0.63){
+    if(vnoise(nx*8,ny*8,17)>0.42) return T.FELL;
+  }
+
+  // Eden Valley (broad central-E corridor)
+  if(nx>0.46 && nx<0.73 && ny>0.17 && ny<0.82) return T.VALLEY;
+
+  // Carlisle plain (N)
+  if(ny<0.22 && nx>0.10) return T.FARM;
+  if(ny>0.80) return T.FARM;
+
+  // Transition fringe around LD
+  if(ld<0.28){ return vnoise(nx*6,ny*6,9)>0.5 ? T.FELL : T.VALLEY; }
+
+  return T.FARM;
+}
+
+function initTerrain(){
+  const cols=Math.ceil(W/TILE), rows=Math.ceil(H/TILE);
+  terrainMap=[];
+  for(let r=0;r<rows;r++){
+    terrainMap[r]=[];
+    for(let c=0;c<cols;c++){
+      terrainMap[r][c]=terrainAt(c/cols, r/rows);
+    }
+  }
+}
+
+function getTerrainPx(px,py){
+  const c=Math.floor(px/TILE), r=Math.floor(py/TILE);
+  if(r<0||r>=terrainMap.length||c<0||c>=(terrainMap[0]||[]).length) return T.FARM;
+  return terrainMap[r][c];
+}
+
+// Hex color delta
+function adjCol(hex,d){
+  let r=parseInt(hex.slice(1,3),16)+d|0;
+  let g=parseInt(hex.slice(3,5),16)+d|0;
+  let b=parseInt(hex.slice(5,7),16)+d|0;
+  return `rgb(${clamp(r,0,255)},${clamp(g,0,255)},${clamp(b,0,255)})`;
+}
+
+// ── TERRAIN CACHE ────────────────────────────────────────
+function buildCache(){
+  tcache = document.createElement('canvas');
+  tcache.width=W; tcache.height=H;
+  const tc=tcache.getContext('2d');
+
+  const rows=terrainMap.length, cols=terrainMap[0].length;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const t=terrainMap[r][c];
+      const v=(vnoise(c*1.9,r*1.9,55)-0.5)*18;
+      tc.fillStyle=adjCol(TCOL[t],v);
+      tc.fillRect(c*TILE,r*TILE,TILE,TILE);
+    }
+  }
+
+  // Knit dot overlay baked into terrain
+  tc.fillStyle='rgba(0,0,0,0.16)';
+  for(let y=2;y<H;y+=4){
+    for(let x=(Math.floor(y/4)%2===0?2:0);x<W;x+=4){
+      tc.fillRect(x,y,1,1);
+    }
+  }
+
+  // Map labels
+  tc.font='10px VT323,monospace';
+  tc.fillStyle='rgba(230,220,200,0.40)';
+  tc.textAlign='left';
+  const labels=[
+    {t:'LAKE DISTRICT',x:88,y:328},
+    {t:'EDEN VALLEY',  x:422,y:372},
+    {t:'PENNINES',     x:608,y:420},
+    {t:'SHAP',         x:448,y:460},
+    {t:'KIRKBY STEPHEN',x:510,y:538},
+    {t:'CARLISLE',     x:175,y:85},
+    {t:'KESWICK',      x:148,y:285},
+    {t:'WINDERMERE',   x:212,y:452},
+    {t:'ULLSWATER',    x:360,y:382},
+    {t:'PENRITH',      x:380,y:220},
+  ];
+  for(const l of labels) tc.fillText(l.t,l.x,l.y);
+
+  // River Eden (approximate)
+  tc.strokeStyle='rgba(60,96,118,0.45)';
+  tc.lineWidth=2.5; tc.setLineDash([]);
+  tc.beginPath();
+  tc.moveTo(195,98);
+  tc.bezierCurveTo(240,160,310,230,415,318);
+  tc.bezierCurveTo(460,380,490,460,498,558);
+  tc.stroke();
+
+  // A66 road hint
+  tc.strokeStyle='rgba(170,158,138,0.28)';
+  tc.lineWidth=1.5; tc.setLineDash([4,4]);
+  tc.beginPath();
+  tc.moveTo(185,278); tc.lineTo(620,308);
+  tc.stroke();
+  tc.setLineDash([]);
+
+  // Compass rose (NE corner)
+  tc.fillStyle='rgba(200,188,168,0.5)';
+  tc.font='12px VT323,monospace';
+  tc.fillText('N',710,22);
+  tc.strokeStyle='rgba(200,188,168,0.4)'; tc.lineWidth=1;
+  tc.beginPath(); tc.moveTo(714,25); tc.lineTo(714,36); tc.stroke();
+}
+
+// ── GAME INIT ────────────────────────────────────────────
+function initGame(){
+  const fullIdx = shuffle([0,1,2,3,4]).slice(0,3);
+
+  G = {
+    phase:'start', wave:0, tick:0,
+    phaseTimer:0, stormTimer:0,
+    fog:0, whiteout:0,
+    windX:1.4, windY:0.2,
+    sheepSaved:0, sheepLost:0,
+    snowPart:[], snowDrifts:[],
+    hayBales:[], helpCalled:false, helpBoost:false,
+    cooldowns:{}, selAction:null,
+    waveShown:{},
+    mx:380, my:320,
+
+    dog:{ x:145, y:340, tx:145, ty:340, spd:3.2, moving:false },
+
+    sheep:[], barns:[]
+  };
+
+  G.barns = BARN_DEF.map((b,i)=>({
+    ...b,
+    full: fullIdx.includes(i),
+    sheepCount:0,
+  }));
+
+  spawnSheep();
+  G.sheepTotal = G.sheep.reduce((s,sh)=>s+SCNT[sh.type],0);
+  updateUI();
+}
+
+function spawnSheep(){
+  const positions=[
+    {x:158,y:375},{x:295,y:448},{x:218,y:255},
+    {x:448,y:295},{x:348,y:545},{x:502,y:182},
+    {x:598,y:395},{x:118,y:498},{x:398,y:412},
+  ];
+  const types=shuffle([...STYPES,...STYPES,'lamb','ewe']);
+  for(let i=0;i<9;i++){
+    const p=positions[i]||{x:rnd(120,560),y:rnd(180,520)};
+    G.sheep.push({
+      x:p.x, y:p.y, vx:0, vy:0,
+      type:types[i]||'standard',
+      health:100,
+      state:'wander', // wander|fleeing|saved|buried|dead
+      hasFeed:false,
+      wa:rnd(0,Math.PI*2), // wander angle
+      wt:0, // wander timer
+    });
+  }
+}
+
+// ── UPDATE: DOG ──────────────────────────────────────────
+function updateDog(){
+  const d=G.dog;
+  const dx=d.tx-d.x, dy=d.ty-d.y, dd=Math.hypot(dx,dy);
+  if(dd>2){
+    d.x+=dx/dd*d.spd;
+    d.y+=dy/dd*d.spd;
+    d.moving=true;
+  } else {
+    d.moving=false;
+  }
+  d.x=clamp(d.x,8,W-8);
+  d.y=clamp(d.y,8,H-8);
+}
+
+// ── UPDATE: SHEEP ────────────────────────────────────────
+function updateSheep(){
+  const INF=82, BARN_R=36;
+
+  for(const sh of G.sheep){
+    if(sh.state==='saved'||sh.state==='dead') continue;
+
+    // Wander angle drift
+    sh.wt--;
+    if(sh.wt<=0){
+      sh.wa+=(Math.random()-0.5)*2.0;
+      sh.wt=35+Math.random()*55;
+    }
+
+    let fx=0, fy=0;
+
+    // Flee from dog (phase 1 only)
+    if(G.phase==='phase1'){
+      const dd=dist(sh,G.dog);
+      if(dd<INF && dd>0){
+        const str=(1-dd/INF)*2.4;
+        fx=(sh.x-G.dog.x)/dd*str;
+        fy=(sh.y-G.dog.y)/dd*str;
+      }
+    }
+
+    // Wander velocity
+    const ws = SSPEED[sh.type]*0.38;
+    const twx=Math.cos(sh.wa)*ws + fx;
+    const twy=Math.sin(sh.wa)*ws + fy;
+
+    sh.vx = sh.vx*0.82 + twx*0.18;
+    sh.vy = sh.vy*0.82 + twy*0.18;
+
+    // Storm wind push
+    if(G.wave>0){
+      sh.vx+=G.windX*0.008*G.wave;
+      sh.vy+=G.windY*0.008*G.wave;
+    }
+
+    sh.x+=sh.vx;
+    sh.y+=sh.vy;
+
+    // Bounds
+    if(sh.x<8){  sh.x=8;  sh.vx*=-0.8; }
+    if(sh.x>W-8){sh.x=W-8;sh.vx*=-0.8; }
+    if(sh.y<8){  sh.y=8;  sh.vy*=-0.8; }
+    if(sh.y>H-8){sh.y=H-8;sh.vy*=-0.8; }
+
+    // Check barn capture
+    for(const barn of G.barns){
+      if(!barn.full && dist(sh,barn)<BARN_R){
+        saveSheep(sh,barn);
+        break;
+      }
+    }
+    if(sh.state==='saved') continue;
+
+    // Phase 2 burial
+    if(G.wave>=2 && sh.state==='wander'){
+      const bc = G.wave===2 ? 0.00018 : 0.00038;
+      if(Math.random()<bc) sh.state='buried';
+    }
+  }
+}
+
+function saveSheep(sh,barn){
+  sh.state='saved';
+  const n=SCNT[sh.type];
+  G.sheepSaved+=n;
+  if(barn){ barn.sheepCount+=n; }
+  updateUI();
+}
+
+// ── UPDATE: STORM ────────────────────────────────────────
+const WAVE1=3600, WAVE2=8400, WAVE3=14400;
+
+function updateStorm(){
+  G.stormTimer++;
+  const st=G.stormTimer;
+
+  if(st<WAVE1){
+    G.wave=1;
+    const t=st/WAVE1;
+    G.fog=lerp(0,0.28,t);
+    G.whiteout=lerp(0,0.08,t);
+  } else if(st<WAVE2){
+    G.wave=2;
+    const t=(st-WAVE1)/(WAVE2-WAVE1);
+    G.fog=lerp(0.28,0.52,t);
+    G.whiteout=lerp(0.08,0.32,t);
+    if(!G.waveShown[2]){ G.waveShown[2]=true;
+      showModal('Wave 2 — Heavy Blizzard',
+        'Visibility collapsing. Sheep may become buried in drifts. Dig them out before exposure kills them.'); }
+  } else if(st<WAVE3){
+    G.wave=3;
+    const t=(st-WAVE2)/(WAVE3-WAVE2);
+    G.fog=lerp(0.52,0.74,t);
+    G.whiteout=lerp(0.32,0.64,t);
+    if(!G.waveShown[3]){ G.waveShown[3]=true;
+      showModal('Wave 3 — Near Whiteout',
+        'The worst of the storm. Every action counts. Buried sheep have little time left.'); }
+  } else {
+    endGame(); return;
+  }
+
+  // Snow particles
+  if(Math.random()<0.12*G.wave){
+    G.snowPart.push({
+      x:rnd(0,W), y:-4,
+      vx:-G.windX*(0.4+Math.random()*0.8),
+      vy:0.8+Math.random()*1.4,
+      r:0.6+Math.random()*1.4,
+      a:0.5+Math.random()*0.5,
+    });
+  }
+
+  for(let i=G.snowPart.length-1;i>=0;i--){
+    const p=G.snowPart[i];
+    p.x+=p.vx+G.windX*0.25;
+    p.y+=p.vy;
+    if(p.y>H+4||p.x<-10||p.x>W+10){
+      // Some settle as drift blobs on ground
+      if(Math.random()<0.04){
+        G.snowDrifts.push({x:p.x, y:clamp(p.y,H-30,H), r:2+Math.random()*6});
+      }
+      G.snowPart.splice(i,1);
+    }
+  }
+
+  for(const d of G.snowDrifts){
+    if(d.r<22) d.r+=0.008;
+  }
+
+  // Health degradation every 2s
+  if(G.tick%120===0){
+    for(const sh of G.sheep){
+      if(sh.state==='dead'||sh.state==='saved') continue;
+      const tr=getTerrainPx(sh.x,sh.y);
+      let risk=TRISK[tr]*G.wave*9;
+      if(sh.hasFeed) risk*=0.45;
+      if(sh.type==='lamb') risk*=1.5;
+      if(sh.type==='old')  risk*=1.3;
+      if(sh.state==='buried') risk*=1.8;
+      sh.health-=risk;
+      if(sh.health<=0){
+        sh.state='dead';
+        G.sheepLost+=SCNT[sh.type];
+        updateUI();
+      }
+    }
+  }
+}
+
+// ── UPDATE: PHASE 1 ──────────────────────────────────────
+function updatePhase1(){
+  G.phaseTimer++;
+  // Storm horizon builds
+  G.fog = Math.min(0.06, G.phaseTimer/7200*0.06);
+
+  // Phase 1: ~120s or 70% saved
+  const saved=G.sheepSaved/Math.max(1,G.sheepTotal);
+  if(G.phaseTimer>7200||saved>=0.70){
+    transitionP2();
+  }
+  updateDog();
+  updateSheep();
+}
+
+function transitionP2(){
+  G.phase='transition';
+  showScreen('p2intro');
+}
+
+// ── DRAW: TERRAIN ────────────────────────────────────────
+function drawTerrain(){
+  if(tcache) ctx.drawImage(tcache,0,0);
+}
+
+// ── DRAW: ATMOSPHERE ─────────────────────────────────────
+function drawAtmosphere(){
+  if(G.phase==='phase1'){
+    // East horizon darkening
+    const t=G.phaseTimer/7200;
+    const grad=ctx.createLinearGradient(W*0.5,0,W,0);
+    grad.addColorStop(0,'rgba(0,0,0,0)');
+    grad.addColorStop(1,`rgba(18,28,48,${t*0.45})`);
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    if(t>0.25){
+      const bg=ctx.createLinearGradient(W*0.65,0,W,0);
+      bg.addColorStop(0,'rgba(200,218,248,0)');
+      bg.addColorStop(1,`rgba(200,218,248,${(t-0.25)*0.32})`);
+      ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    }
+  }
+  if(G.phase==='phase2'||G.phase==='transition'){
+    // Fog
+    ctx.fillStyle=`rgba(192,205,215,${G.fog})`;
+    ctx.fillRect(0,0,W,H);
+    // Whiteout vignette
+    if(G.whiteout>0){
+      const vg=ctx.createRadialGradient(W/2,H/2,H*0.28,W/2,H/2,H*0.85);
+      vg.addColorStop(0,'rgba(215,228,242,0)');
+      vg.addColorStop(1,`rgba(215,228,242,${G.whiteout})`);
+      ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+    }
+  }
+}
+
+// ── DRAW: SNOW DRIFTS ────────────────────────────────────
+function drawDrifts(){
+  ctx.save();
+  ctx.globalAlpha=0.55;
+  ctx.fillStyle='#d8e4ee';
+  for(const d of G.snowDrifts){
+    ctx.beginPath();
+    ctx.ellipse(d.x,d.y,d.r,d.r*0.38,0,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── DRAW: SNOW PARTICLES ─────────────────────────────────
+function drawSnowPart(){
+  ctx.save();
+  ctx.fillStyle='#eef2ff';
+  const vfactor=Math.min(1,G.fog*3+0.2);
+  for(const p of G.snowPart){
+    ctx.globalAlpha=p.a*vfactor;
+    ctx.beginPath();
+    ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── DRAW: HAY BALES ─────────────────────────────────────
+function drawHay(){
+  for(const h of G.hayBales){
+    ctx.fillStyle='#b89840';
+    ctx.fillRect(h.x-7,h.y-5,14,10);
+    ctx.fillStyle='#987828';
+    for(let i=0;i<3;i++) ctx.fillRect(h.x-5+i*4,h.y-5,2,10);
+    // Knit dots on bale
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    for(let bx=h.x-5;bx<h.x+6;bx+=3) ctx.fillRect(bx,h.y-3,1,1);
+    // Reach ring
+    ctx.strokeStyle='rgba(160,140,48,0.2)';
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(h.x,h.y,42,0,Math.PI*2); ctx.stroke();
+  }
+}
+
+// ── DRAW: BARNS ──────────────────────────────────────────
+function drawBarns(){
+  for(const b of G.barns){
+    const x=Math.round(b.x), y=Math.round(b.y);
+    const open=!b.full;
+    const bc=open?'#8a7848':'#4a3c2c';
+    const rc=open?'#786838':'#3c3020';
+
+    // Main body
+    ctx.fillStyle=bc;
+    ctx.fillRect(x-14,y-8,28,18);
+    // Roof
+    ctx.fillStyle=rc;
+    ctx.beginPath();
+    ctx.moveTo(x-16,y-8); ctx.lineTo(x,y-22); ctx.lineTo(x+16,y-8);
+    ctx.closePath(); ctx.fill();
+    // Door
+    ctx.fillStyle=open?'#4a3818':'#2c2010';
+    ctx.fillRect(x-4,y+2,8,8);
+    // Knit dots
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    for(let bx=x-12;bx<x+12;bx+=4)
+      for(let by=y-6;by<y+10;by+=4)
+        ctx.fillRect(bx,by,1,1);
+
+    // Labels
+    ctx.font='10px VT323,monospace';
+    ctx.textAlign='center';
+    ctx.fillStyle=open?'rgba(198,185,152,0.9)':'rgba(128,112,88,0.7)';
+    ctx.fillText(b.name,x,y-25);
+    ctx.fillStyle=open?'#78a850':'#b04828';
+    ctx.fillText(open?'OPEN':'FULL',x,y+20);
+    if(b.sheepCount>0){
+      ctx.fillStyle='rgba(168,198,148,0.9)';
+      ctx.fillText('✓'+b.sheepCount,x,y+30);
+    }
+    // Capture ring (phase 1, open barns)
+    if(G.phase==='phase1' && open){
+      ctx.strokeStyle='rgba(88,168,68,0.18)';
+      ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(b.x,b.y,36,0,Math.PI*2); ctx.stroke();
+    }
+  }
+}
+
+// ── DRAW: SHEEP ──────────────────────────────────────────
+function drawSheep(){
+  for(const sh of G.sheep){
+    if(sh.state==='saved') continue;
+
+    const x=Math.round(sh.x), y=Math.round(sh.y);
+
+    if(sh.state==='dead'){
+      ctx.strokeStyle='rgba(168,52,32,0.55)';
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.moveTo(x-5,y-5); ctx.lineTo(x+5,y+5);
+      ctx.moveTo(x+5,y-5); ctx.lineTo(x-5,y+5);
+      ctx.stroke();
+      continue;
+    }
+
+    const buried=sh.state==='buried';
+    ctx.save();
+    if(buried) ctx.globalAlpha=0.28;
+
+    // Body size
+    let bw=14,bh=9;
+    if(sh.type==='lamb'){  bw=9; bh=6; }
+    if(sh.type==='ewe'){   bw=17;bh=11;}
+    if(sh.type==='old'){   bw=14;bh=9; }
+
+    // Wool body
+    const col=sh.type==='lamb'?'#deded6':'#d2cec4';
+    ctx.fillStyle=col;
+    ctx.fillRect(x-bw/2,y-bh/2,bw,bh);
+    // Wool texture dots (knit)
+    ctx.fillStyle='rgba(0,0,0,0.22)';
+    for(let wx=x-bw/2+1;wx<x+bw/2-1;wx+=4)
+      ctx.fillRect(wx,y-bh/2+1,2,2);
+
+    // Head
+    ctx.fillStyle='#242018';
+    ctx.fillRect(x+bw/2-4,y-4,6,6);
+
+    // Legs
+    ctx.fillStyle='#1c1a14';
+    const ly=y+bh/2;
+    ctx.fillRect(x-bw/2+2,ly,2,4);
+    ctx.fillRect(x-bw/2+6,ly,2,4);
+    ctx.fillRect(x+bw/2-8,ly,2,4);
+    ctx.fillRect(x+bw/2-4,ly,2,4);
+
+    // Count badge
+    ctx.font='9px VT323,monospace';
+    ctx.textAlign='center';
+    ctx.fillStyle='rgba(210,198,168,0.88)';
+    ctx.fillText('×'+SCNT[sh.type],x,y-bh/2-2);
+
+    ctx.restore();
+
+    // Health bar (phase 2, not buried)
+    if(G.phase==='phase2' && !buried){
+      const hp=sh.health/100;
+      ctx.fillStyle='rgba(0,0,0,0.5)';
+      ctx.fillRect(x-9,y-bh/2-8,18,3);
+      ctx.fillStyle=hp>0.5?'#70a048':hp>0.25?'#c09830':'#c03828';
+      ctx.fillRect(x-9,y-bh/2-8,18*hp,3);
+    }
+
+    // Hay indicator
+    if(sh.hasFeed && G.phase==='phase2'){
+      ctx.font='8px sans-serif';
+      ctx.textAlign='center';
+      ctx.fillText('🌾',x,y-bh/2-10);
+    }
+  }
+}
+
+// ── DRAW: DOG ────────────────────────────────────────────
+function drawDog(){
+  if(G.phase!=='phase1') return;
+  const d=G.dog;
+  const x=Math.round(d.x), y=Math.round(d.y);
+
+  // Body (black/white border collie)
+  ctx.fillStyle='#1c1a14';
+  ctx.fillRect(x-6,y-4,12,8);
+  ctx.fillStyle='#d8d0c0';
+  ctx.fillRect(x-4,y-2,5,5);
+  ctx.fillStyle='#1c1a14';
+  ctx.fillRect(x+4,y-5,5,5); // head
+  ctx.fillStyle='#c07828';
+  ctx.fillRect(x+5,y-4,1,1); // eye
+  ctx.fillStyle='#1c1a14';
+  // Legs
+  ctx.fillRect(x-5,y+4,2,4);
+  ctx.fillRect(x-1,y+4,2,4);
+  ctx.fillRect(x+3,y+4,2,4);
+  // Tail
+  ctx.fillRect(x-10,y-2,4,2);
+
+  // Influence circle hint
+  ctx.strokeStyle='rgba(188,168,128,0.08)';
+  ctx.lineWidth=1;
+  ctx.beginPath(); ctx.arc(d.x,d.y,82,0,Math.PI*2); ctx.stroke();
+
+  // Waypoint line
+  if(dist(d,{x:d.tx,y:d.ty})>6){
+    ctx.strokeStyle='rgba(188,168,128,0.35)';
+    ctx.lineWidth=1; ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.tx,d.ty); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(188,168,128,0.55)';
+    ctx.fillRect(d.tx-2,d.ty-2,4,4);
+  }
+}
+
+// ── DRAW: HUD ────────────────────────────────────────────
+function drawHUD(){
+  ctx.font='13px VT323,monospace';
+  ctx.textAlign='left';
+  // Date/time stamp
+  const start=new Date('2018-02-24T08:00:00');
+  const hrs=G.tick/60/60*24; // 1 real-minute = 24 game hours
+  const gdate=new Date(start.getTime()+hrs*3600000);
+  const ds=gdate.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+
+           ' '+gdate.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  ctx.fillStyle='rgba(195,182,155,0.72)';
+  ctx.fillText(ds,8,18);
+
+  // Wave label
+  if(G.phase==='phase2'){
+    const wl=['','WAVE 1 — LIGHT SNOW','WAVE 2 — HEAVY BLIZZARD','WAVE 3 — NEAR WHITEOUT'];
+    ctx.textAlign='center';
+    const alpha=0.65+Math.sin(G.tick*0.12)*0.2;
+    ctx.fillStyle=`rgba(175,205,238,${alpha})`;
+    ctx.font='15px VT323,monospace';
+    ctx.fillText(wl[G.wave]||'',W/2,18);
+    ctx.textAlign='left';
+  }
+
+  // Phase 1 countdown
+  if(G.phase==='phase1'){
+    const rem=Math.max(0,Math.ceil((7200-G.phaseTimer)/60));
+    ctx.textAlign='right';
+    ctx.fillStyle=rem<30?'rgba(185,80,40,0.85)':'rgba(168,152,118,0.65)';
+    ctx.font='13px VT323,monospace';
+    ctx.fillText('Storm in ~'+rem+'s',W-8,18);
+    ctx.textAlign='left';
+  }
+}
+
+// ── DRAW: CURSOR ─────────────────────────────────────────
+function drawCursor(){
+  if(G.phase!=='phase2'||!G.selAction) return;
+  const icons={hay:'≡',dig:'+',move:'→'};
+  ctx.font='18px VT323,monospace';
+  ctx.fillStyle='rgba(200,185,148,0.8)';
+  ctx.textAlign='left';
+  ctx.fillText((icons[G.selAction]||'')+'  '+G.selAction.toUpperCase(),G.mx+10,G.my-8);
+}
+
+// ── UI PANEL ─────────────────────────────────────────────
+function updateUI(){
+  document.getElementById('u-saved').textContent=G.sheepSaved;
+  document.getElementById('u-lost').textContent=G.sheepLost;
+  const wl={0:'—',1:'Light Snow',2:'Blizzard',3:'Whiteout'};
+  document.getElementById('u-wave').textContent=
+    G.phase==='phase1'?'Incoming…':wl[G.wave]||'—';
+  // Date (simplified)
+  const start=new Date('2018-02-24');
+  const d=new Date(start.getTime()+(G.tick/60/60*24)*3600000);
+  document.getElementById('u-date').textContent=
+    d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  updateActions();
+}
+
+function updateActions(){
+  const area=document.getElementById('action-area');
+  area.innerHTML='';
+
+  if(G.phase==='phase1'){
+    area.innerHTML='<p style="font-size:12px;color:#3a3a2c;line-height:1.4">Click the map to guide your sheepdog. Herd sheep to the <span style="color:#78a858">OPEN</span> barns before the storm.</p>';
+    return;
+  }
+  if(G.phase!=='phase2') return;
+
+  document.getElementById('action-title').textContent='Wave '+G.wave+' Actions';
+
+  const defs=[
+    {id:'hay', label:'Deploy Hay Bale',  sub:'Click map to feed nearby flock',
+     waves:[1,2,3], cd:240,
+     fn:()=>{ G.selAction='hay'; canvas.style.cursor='crosshair'; updateActions(); }},
+    {id:'dig', label:'Dig Out Sheep',     sub:'Click buried sheep to rescue',
+     waves:[2,3], cd:90,
+     fn:()=>{ G.selAction='dig'; canvas.style.cursor='crosshair'; updateActions(); }},
+    {id:'move',label:'Move to Barn',      sub:'Wave 1 only — click a flock',
+     waves:[1], cd:300,
+     fn:()=>{ G.selAction='move'; canvas.style.cursor='crosshair'; updateActions(); }},
+    {id:'help',label:'Call Neighbours',   sub:G.helpCalled?'Already called':'Boosts rescue chance',
+     waves:[1,2,3], cd:0, once:true,
+     fn:()=>{
+       if(!G.helpCalled){
+         G.helpCalled=true; G.helpBoost=true;
+         setTimeout(()=>G.helpBoost=false,60000);
+         showModal('Help Answered','A neighbour arrives through the snow. Your dig-out success rate is improved for 60 seconds.');
+         updateActions();
+       }
+     }},
+    {id:'wait',label:'Wait Out Storm',    sub:'Shelter indoors — pray',
+     waves:[1,2,3], cd:0,
+     fn:()=>showModal('Waiting…','You sit by the range as the blizzard howls. Some sheep will pull through on instinct — but not all.')},
+  ];
+
+  for(const a of defs){
+    if(!a.waves.includes(G.wave)) continue;
+    const cd=G.cooldowns[a.id]||0;
+    const disabled=(a.once&&G.helpCalled&&a.id==='help')||cd>0;
+    const sel=G.selAction===a.id;
+    const btn=document.createElement('button');
+    btn.className='abt'+(sel?' sel':'');
+    btn.disabled=disabled;
+    btn.innerHTML=a.label+(sel?' ◄':'')+
+      `<span class="sub">${cd>0?'cooldown '+Math.ceil(cd/60)+'s':a.sub}</span>`;
+    btn.onclick=a.fn;
+    area.appendChild(btn);
+  }
+}
+
+// ── MODAL ────────────────────────────────────────────────
+function showModal(title,body){
+  document.getElementById('m-title').textContent=title;
+  document.getElementById('m-body').textContent=body;
+  document.getElementById('modal-ov').style.display='flex';
+}
+function closeModal(){
+  document.getElementById('modal-ov').style.display='none';
+}
+
+// ── SCREENS ──────────────────────────────────────────────
+function showScreen(name){
+  const s=document.getElementById('screen');
+  s.style.display='flex';
+  if(name==='start'){
+    s.innerHTML=`
+      <h1>BEAST OF THE EAST</h1>
+      <p class="sub">Cumbria, February 2018</p>
+      <p>A brutal polar storm is building in the east. You have precious time to shelter your flock before the blizzard strikes.</p>
+      <p><em>Phase 1:</em> Guide your sheepdog to herd sheep into open barns.<br>
+         <em>Phase 2:</em> Battle three storm waves to keep them alive.</p>
+      <button class="bbtn" onclick="startP1()">Begin — 24 Feb 2018, 08:00</button>
+      <div id="lb" style="margin-top:16px"></div>`;
+    renderLB();
+  } else if(name==='p2intro'){
+    s.innerHTML=`
+      <h1 style="color:#9ab8d8">The Storm Breaks</h1>
+      <p class="sub" style="color:#6878a0">26 Feb 2018 — The Beast of the East arrives</p>
+      <p>The blizzard has struck. Your dog cannot work in these conditions. You must act as shepherd — deploying feed, digging out buried animals, calling for help.</p>
+      <p>Three waves of increasing severity. Every choice costs time.</p>
+      <button class="bbtn" onclick="startP2()">Face the Storm</button>`;
+  } else if(name==='end'){
+    showEndScreen();
+  }
+}
+function hideScreen(){ document.getElementById('screen').style.display='none'; }
+
+function showEndScreen(){
+  const s=document.getElementById('screen');
+  s.style.display='flex';
+  const total=G.sheepSaved+G.sheepLost;
+  const pct=total>0?Math.round(G.sheepSaved/total*100):0;
+  let ctx2='You saved what you could.';
+  if(G.sheepSaved===0) ctx2='Not a single animal made it through.';
+  else if(pct>=80) ctx2='A remarkable effort — one of the luckier farms.';
+  else if(pct>=50) ctx2='Roughly half survived — close to the regional average.';
+  else if(pct<30)  ctx2='Devastating losses. Many farms across Cumbria fared no better.';
+  s.innerHTML=`
+    <h1>Storm Passed</h1>
+    <p class="sub">28 Feb 2018 — The Beast retreats</p>
+    <div class="stark">During the Beast of the East 2018,<br>over 250,000 lambs died across the region.</div>
+    <p style="font-size:22px;margin:8px 0">You saved <strong style="color:#78a058">${G.sheepSaved}</strong> sheep — one farm's worth.</p>
+    <p style="color:#888470">${ctx2}</p>
+    <p style="font-size:13px;color:#585848;max-width:440px;margin-top:6px">In late February and early March 2018, farmers across Wales, England and Scotland reported catastrophic lambing losses. Total agricultural damage exceeded £100 million. Many farms did not recover that season.</p>
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button class="bbtn" onclick="initGame();showScreen('start')">Play Again</button>
+    </div>
+    <div id="lb" style="margin-top:12px"></div>`;
+  saveScore(G.sheepSaved);
+  renderLB();
+}
+
+// ── LEADERBOARD ──────────────────────────────────────────
+function saveScore(n){
+  const lb=JSON.parse(localStorage.getItem('bote_lb')||'[]');
+  lb.push({n,d:new Date().toLocaleDateString('en-GB')});
+  lb.sort((a,b)=>b.n-a.n); lb.splice(5);
+  localStorage.setItem('bote_lb',JSON.stringify(lb));
+}
+function renderLB(){
+  const el=document.getElementById('lb'); if(!el) return;
+  const lb=JSON.parse(localStorage.getItem('bote_lb')||'[]');
+  if(!lb.length){ el.innerHTML='<div style="color:#3e3c30;font-size:13px">No scores yet</div>'; return; }
+  el.innerHTML='<div style="color:#585848;font-size:12px;margin-bottom:3px;text-transform:uppercase;letter-spacing:1px">High Scores</div>'+
+    lb.map((s,i)=>`<div>${i+1}. ${s.n} sheep — ${s.d}</div>`).join('');
+}
+
+// ── STORM PROGRESS BAR ───────────────────────────────────
+function updateSBar(){
+  const prog=document.getElementById('sprog');
+  if(G.phase==='phase1'){
+    prog.style.width=(G.phaseTimer/7200*100)+'%';
+    prog.style.background='linear-gradient(to right,#3868b0,rgba(190,210,248,0.7))';
+  } else if(G.phase==='phase2'){
+    prog.style.width=(Math.min(1,G.stormTimer/WAVE3)*100)+'%';
+    prog.style.background='linear-gradient(to right,#486898,#a8c0d8)';
+  }
+}
+
+// ── PHASE CONTROLS ───────────────────────────────────────
+function startP1(){
+  hideScreen(); G.phase='phase1'; G.phaseTimer=0;
+  tryAudio(); updateUI();
+}
+function startP2(){
+  hideScreen(); G.phase='phase2'; G.wave=1; G.stormTimer=0; updateUI();
+}
+function endGame(){ G.phase='end'; showScreen('end'); }
+
+// ── INPUT ────────────────────────────────────────────────
+canvas.addEventListener('click',e=>{
+  const r=canvas.getBoundingClientRect();
+  const mx=(e.clientX-r.left)*(W/r.width);
+  const my=(e.clientY-r.top)*(H/r.height);
+
+  if(G.phase==='phase1'){
+    G.dog.tx=mx; G.dog.ty=my;
+    // Check full barn click
+    for(const b of G.barns){
+      if(b.full && dist({x:mx,y:my},b)<22){
+        showModal('Barn Full',b.name+' is already at capacity. Try another shelter.');
+        return;
+      }
+    }
+  } else if(G.phase==='phase2'){
+    handleP2Click(mx,my);
+  }
+});
+
+canvas.addEventListener('mousemove',e=>{
+  const r=canvas.getBoundingClientRect();
+  G.mx=(e.clientX-r.left)*(W/r.width);
+  G.my=(e.clientY-r.top)*(H/r.height);
+});
+
+function handleP2Click(mx,my){
+  if(!G.selAction) return;
+  const ac=G.selAction;
+
+  if(ac==='hay'){
+    G.hayBales.push({x:mx,y:my});
+    for(const sh of G.sheep){
+      if(sh.state!=='dead'&&sh.state!=='saved'&&dist({x:mx,y:my},sh)<44) sh.hasFeed=true;
+    }
+    G.cooldowns.hay=240;
+    G.selAction=null; canvas.style.cursor='default'; updateActions();
+  }
+  else if(ac==='dig'){
+    let found=false;
+    for(const sh of G.sheep){
+      if(sh.state==='buried' && dist({x:mx,y:my},sh)<24){
+        const base=G.wave===2?0.68:0.38;
+        const chance=G.helpBoost?Math.min(base+0.24,0.92):base;
+        if(Math.random()<chance){
+          sh.state='wander'; sh.health=Math.max(8,sh.health);
+          showModal('Rescued!','Found '+SCNT[sh.type]+' sheep buried in a drift — weak but alive.');
+        } else {
+          sh.state='dead'; G.sheepLost+=SCNT[sh.type];
+          showModal('Too Late','The sheep did not survive the burial. Exposure was too severe.');
+          updateUI();
+        }
+        G.cooldowns.dig=90; G.selAction=null;
+        canvas.style.cursor='default'; updateActions(); found=true; break;
+      }
+    }
+    if(!found) showModal('Nothing Here','No buried sheep found at that location. Look for faint outlines in the snow.');
+  }
+  else if(ac==='move'){
+    let closest=null, cd=Infinity;
+    for(const sh of G.sheep){
+      if(sh.state==='wander'){
+        const d=dist({x:mx,y:my},sh);
+        if(d<cd){ cd=d; closest=sh; }
+      }
+    }
+    if(closest && cd<48){
+      const barn=G.barns.filter(b=>!b.full).sort((a,b2)=>dist(closest,a)-dist(closest,b2))[0];
+      if(barn){
+        saveSheep(closest,barn);
+        showModal('Moved to Barn','Guided '+SCNT[closest.type]+' sheep into '+barn.name+' before conditions worsened.');
+        G.cooldowns.move=300; G.selAction=null;
+        canvas.style.cursor='default'; updateActions();
+      }
+    } else {
+      showModal('No Flock Nearby','Click closer to a sheep group to move them.');
+    }
+  }
+}
+
+// ── COOLDOWNS ────────────────────────────────────────────
+function tickCooldowns(){
+  let changed=false;
+  for(const k in G.cooldowns){
+    if(G.cooldowns[k]>0){ G.cooldowns[k]--; if(G.cooldowns[k]===0) changed=true; }
+  }
+  if(changed) updateActions();
+}
+
+// ── AUDIO ─────────────────────────────────────────────────
+function tryAudio(){
+  const a=document.getElementById('bgMusic');
+  if(a.querySelector('source')) a.play().catch(()=>{});
+}
+
+// ── MAIN LOOP ────────────────────────────────────────────
+function loop(){
+  requestAnimationFrame(loop);
+  G.tick++;
+
+  if(G.phase==='phase1') updatePhase1();
+  else if(G.phase==='phase2'){
+    updateStorm();
+    updateSheep();
+    tickCooldowns();
+    if(G.tick%60===0) updateUI();
+  }
+
+  // Draw
+  ctx.clearRect(0,0,W,H);
+  drawTerrain();
+  drawAtmosphere();
+  drawDrifts();
+  drawHay();
+  drawBarns();
+  drawSheep();
+  drawDog();
+  drawSnowPart();
+
+  // Knit overlay pass (top)
+  ctx.fillStyle='rgba(0,0,0,0.03)';
+  for(let y=0;y<H;y+=8){
+    for(let x=(Math.floor(y/8)%2===0?0:4);x<W;x+=8){
+      ctx.fillRect(x,y,1,1);
+    }
+  }
+
+  drawHUD();
+  drawCursor();
+  updateSBar();
+}
+
+// ── BOOT ─────────────────────────────────────────────────
+function boot(){
+  initTerrain();
+  buildCache();
+  initGame();
+  showScreen('start');
+  loop();
+}
+
+boot();
+</script>
+</body>
+</html>
