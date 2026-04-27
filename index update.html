@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Save the Sheep</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#0a0a08;
+  display:flex; align-items:center; justify-content:center;
+  min-height:100vh;
+  font-family:'VT323','Courier New',monospace;
+  color:#e0d8c8;
+  overflow:hidden;
+}
+#wrap {
+  position:relative; width:960px; height:640px;
+  box-shadow:0 0 60px rgba(0,0,0,0.95);
+}
+canvas { display:block; }
+#ui {
+  position:absolute; top:0; right:0; width:200px; height:640px;
+  background:#141410; border-left:3px solid #2e2e24;
+  display:flex; flex-direction:column; padding:10px; gap:7px;
+}
+.ubox { border:2px solid #2e2e24; padding:6px 8px; background:#0e0e0a; }
+.ulabel { font-size:11px; color:#5a5a48; text-transform:uppercase; letter-spacing:2px; margin-bottom:2px; }
+.uval { font-size:24px; color:#c0b898; line-height:1.1; }
+.uval.g { color:#78a058; }
+.uval.r { color:#b85838; }
+#action-wrap { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+#action-title {
+  font-size:12px; color:#787860; text-transform:uppercase;
+  letter-spacing:1px; border-bottom:1px solid #2e2e24;
+  padding-bottom:4px; margin-bottom:5px;
+}
+#action-area { display:flex; flex-direction:column; gap:4px; overflow-y:auto; flex:1; }
+.abt {
+  font-family:'VT323',monospace; font-size:14px;
+  padding:5px 7px; background:#181814; color:#b8b090;
+  border:2px solid #383828; cursor:pointer; text-align:left; width:100%; line-height:1.2;
+}
+.abt:hover:not(:disabled) { background:#222018; border-color:#686848; }
+.abt:disabled { color:#3a3a2c; border-color:#202018; cursor:not-allowed; }
+.abt .sub { font-size:10px; color:#565648; display:block; margin-top:1px; }
+.abt.sel { border-color:#a09060; color:#d0c890; }
+#modal-ov {
+  display:none; position:absolute; inset:0;
+  background:rgba(0,0,0,0.75); z-index:100;
+  align-items:center; justify-content:center;
+}
+#modal-box {
+  background:#161612; border:3px solid #686848;
+  padding:22px; max-width:360px; text-align:center;
+}
+#modal-box h2 { font-size:24px; color:#c0b898; margin-bottom:8px; }
+#modal-box p { font-size:16px; color:#9a9278; line-height:1.4; margin-bottom:12px; }
+.mbt {
+  font-family:'VT323',monospace; font-size:19px;
+  padding:5px 18px; background:#222018; color:#c0b898;
+  border:2px solid #686848; cursor:pointer; margin:3px;
+}
+.mbt:hover { background:#2e2a1e; }
+#screen {
+  display:flex; position:absolute; inset:0;
+  background:rgba(6,6,4,0.97); z-index:200;
+  align-items:center; justify-content:center;
+  flex-direction:column; text-align:center; padding:28px;
+}
+#screen h1 { font-size:54px; color:#c0b898; line-height:1; margin-bottom:4px; }
+#screen .sub { font-size:21px; color:#706a54; margin-bottom:18px; }
+#screen p { font-size:17px; color:#9a9278; max-width:520px; line-height:1.5; margin-bottom:10px; }
+#screen .stark { font-size:18px; color:#b85030; margin:12px 0; line-height:1.4; }
+.bbtn {
+  font-family:'VT323',monospace; font-size:24px;
+  padding:9px 32px; background:#222018; color:#c0b898;
+  border:3px solid #787858; cursor:pointer; margin-top:14px;
+}
+.bbtn:hover { background:#2e2a1e; }
+#lb { font-size:15px; color:#786e58; margin-top:10px; line-height:1.6; }
+#sbar { position:absolute; top:0; left:0; width:760px; height:4px; background:#0a0a08; z-index:10; }
+#sprog { height:100%; width:0%; background:linear-gradient(to right,#3870b8,#90b8e0); }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <canvas id="c" width="760" height="640"></canvas>
+  <div id="sbar"><div id="sprog"></div></div>
+
+  <div id="ui">
+    <div class="ubox">
+      <div class="ulabel">Date</div>
+      <div class="uval" id="u-date">24 Feb 2018</div>
+    </div>
+    <div class="ubox">
+      <div class="ulabel">Sheep Saved</div>
+      <div class="uval g" id="u-saved">0</div>
+    </div>
+    <div class="ubox">
+      <div class="ulabel">Sheep Lost</div>
+      <div class="uval r" id="u-lost">0</div>
+    </div>
+    <div class="ubox">
+      <div class="ulabel">Storm</div>
+      <div class="uval" id="u-wave">—</div>
+    </div>
+    <div id="action-wrap">
+      <div id="action-title">Actions</div>
+      <div id="action-area">
+        <p style="font-size:12px;color:#3e3e30;line-height:1.4">Click the map to direct your sheepdog. Herd sheep into open barns before the storm.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-ov">
+    <div id="modal-box">
+      <h2 id="m-title">—</h2>
+      <p id="m-body">—</p>
+      <button class="mbt" onclick="closeModal()">OK</button>
+    </div>
+  </div>
+
+  <div id="screen"><!-- populated by JS --></div>
+</div>
+
+<audio id="bgMusic" loop>
+  <source src="waulking.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  SAVE THE SHEEP — The Beast of the East, Cumbria 2018
+// ═══════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const W = 760, H = 640;
+
+// ── TERRAIN ──────────────────────────────────────────────
+const T = { COAST:0, FARM:1, VALLEY:2, FELL:3, LAKE:4 };
+const TCOL  = ['#6e808c','#8aaa60','#789a50','#5a6848','#3e6070'];
+const TRISK = [0.2, 0.25, 0.45, 0.85, 0];
+const TILE  = 8;
+
+// ── SHEEP ────────────────────────────────────────────────
+const SCNT  = { standard:4, lamb:2, ewe:8, old:3 };
+const SSPEED= { standard:1.0, lamb:1.5, ewe:0.8, old:0.6 };
+
+// ── BARN LOCATIONS ───────────────────────────────────────
+const BARN_DEF = [
+  { name:'Hutton Farm',   x:395, y:190 },
+  { name:'Reagill Barn',  x:510, y:345 },
+  { name:'Fell End Farm', x:228, y:548 },
+  { name:'Shap Common',   x:478, y:472 },
+  { name:'Dufton Pike',   x:598, y:262 },
+];
+
+// ── STATE ────────────────────────────────────────────────
+let G, terrainMap, tcache;
+
+// ── HELPERS ──────────────────────────────────────────────
+function rnd(a,b){ return a+Math.random()*(b-a); }
+function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+function lerp(a,b,t){ return a+(b-a)*t; }
+function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
+function shuffle(a){ const b=[...a]; for(let i=b.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[b[i],b[j]]=[b[j],b[i]];} return b; }
+function lerpColor(c1,c2,t){
+  const r1=parseInt(c1.slice(1,3),16),g1=parseInt(c1.slice(3,5),16),b1=parseInt(c1.slice(5,7),16);
+  const r2=parseInt(c2.slice(1,3),16),g2=parseInt(c2.slice(3,5),16),b2=parseInt(c2.slice(5,7),16);
+  return `rgb(${(r1+(r2-r1)*t)|0},${(g1+(g2-g1)*t)|0},${(b1+(b2-b1)*t)|0})`;
+}
+
+// ── TERRAIN GENERATION ───────────────────────────────────
+function vnoise(x,y,s=0){
+  const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+  const h=n=>{let v=(n^(n<<13)^s)*0x9e3779b9;v=(v^(v>>16))*0x85ebca6b;v=(v^(v>>13))*0xc2b2ae35;return((v^(v>>16))&0xffff)/0xffff;};
+  const aa=h(xi+yi*57),ba=h(xi+1+yi*57),ab=h(xi+(yi+1)*57),bb=h(xi+1+(yi+1)*57);
+  const lx=xf*xf*(3-2*xf),ly=yf*yf*(3-2*yf);
+  return aa+(ba-aa)*lx+(ab-aa)*ly+(aa-ba-ab+bb)*lx*ly;
+}
+
+function terrainAt(nx,ny){
+  const lakes=[
+    {cx:0.285,cy:0.685,rx:0.022,ry:0.072},
+    {cx:0.415,cy:0.415,rx:0.018,ry:0.055},
+    {cx:0.215,cy:0.315,rx:0.016,ry:0.062},
+    {cx:0.298,cy:0.478,rx:0.012,ry:0.048},
+    {cx:0.198,cy:0.645,rx:0.013,ry:0.044},
+  ];
+  for(const l of lakes){
+    if((nx-l.cx)**2/l.rx**2+(ny-l.cy)**2/l.ry**2<1) return T.LAKE;
+  }
+  if(nx<0.10) return T.COAST;
+  if(ny<0.16&&nx<0.38) return T.COAST;
+  if(ny>0.91&&nx<0.52) return T.COAST;
+  const ldx=0.268,ldy=0.512;
+  const ld=Math.sqrt((nx-ldx)**2*1.8+(ny-ldy)**2)+(vnoise(nx*9,ny*9,42)-0.5)*0.07;
+  if(ld<0.21) return T.FELL;
+  if(nx>0.78&&ny>0.18&&ny<0.88) return T.FELL;
+  if(nx>0.50&&nx<0.74&&ny>0.43&&ny<0.63){
+    if(vnoise(nx*8,ny*8,17)>0.42) return T.FELL;
+  }
+  if(nx>0.46&&nx<0.73&&ny>0.17&&ny<0.82) return T.VALLEY;
+  if(ny<0.22&&nx>0.10) return T.FARM;
+  if(ny>0.80) return T.FARM;
+  if(ld<0.28) return vnoise(nx*6,ny*6,9)>0.5?T.FELL:T.VALLEY;
+  return T.FARM;
+}
+
+function initTerrain(){
+  const cols=Math.ceil(W/TILE),rows=Math.ceil(H/TILE);
+  terrainMap=[];
+  for(let r=0;r<rows;r++){
+    terrainMap[r]=[];
+    for(let c=0;c<cols;c++) terrainMap[r][c]=terrainAt(c/cols,r/rows);
+  }
+}
+
+function getTerrainPx(px,py){
+  const c=Math.floor(px/TILE),r=Math.floor(py/TILE);
+  if(r<0||r>=terrainMap.length||c<0||c>=(terrainMap[0]||[]).length) return T.FARM;
+  return terrainMap[r][c];
+}
+
+function adjCol(hex,d){
+  let r=parseInt(hex.slice(1,3),16)+d|0;
+  let g=parseInt(hex.slice(3,5),16)+d|0;
+  let b=parseInt(hex.slice(5,7),16)+d|0;
+  return `rgb(${clamp(r,0,255)},${clamp(g,0,255)},${clamp(b,0,255)})`;
+}
+
+// ── TERRAIN CACHE ────────────────────────────────────────
+function buildCache(){
+  tcache=document.createElement('canvas');
+  tcache.width=W; tcache.height=H;
+  const tc=tcache.getContext('2d');
+  const rows=terrainMap.length,cols=terrainMap[0].length;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const t=terrainMap[r][c];
+      const v=(vnoise(c*1.9,r*1.9,55)-0.5)*18;
+      tc.fillStyle=adjCol(TCOL[t],v);
+      tc.fillRect(c*TILE,r*TILE,TILE,TILE);
+    }
+  }
+  tc.fillStyle='rgba(0,0,0,0.16)';
+  for(let y=2;y<H;y+=4){
+    for(let x=(Math.floor(y/4)%2===0?2:0);x<W;x+=4) tc.fillRect(x,y,1,1);
+  }
+  tc.font='10px VT323,monospace';
+  tc.fillStyle='rgba(230,220,200,0.40)';
+  tc.textAlign='left';
+  const labels=[
+    {t:'LAKE DISTRICT',x:88,y:328},{t:'EDEN VALLEY',x:422,y:372},
+    {t:'PENNINES',x:608,y:420},{t:'SHAP',x:448,y:460},
+    {t:'KIRKBY STEPHEN',x:510,y:538},{t:'CARLISLE',x:175,y:85},
+    {t:'KESWICK',x:148,y:285},{t:'WINDERMERE',x:212,y:452},
+    {t:'ULLSWATER',x:360,y:382},{t:'PENRITH',x:380,y:220},
+  ];
+  for(const l of labels) tc.fillText(l.t,l.x,l.y);
+  tc.strokeStyle='rgba(60,96,118,0.45)';
+  tc.lineWidth=2.5; tc.setLineDash([]);
+  tc.beginPath();
+  tc.moveTo(195,98);
+  tc.bezierCurveTo(240,160,310,230,415,318);
+  tc.bezierCurveTo(460,380,490,460,498,558);
+  tc.stroke();
+  tc.strokeStyle='rgba(170,158,138,0.28)';
+  tc.lineWidth=1.5; tc.setLineDash([4,4]);
+  tc.beginPath(); tc.moveTo(185,278); tc.lineTo(620,308); tc.stroke();
+  tc.setLineDash([]);
+  tc.fillStyle='rgba(200,188,168,0.5)';
+  tc.font='12px VT323,monospace';
+  tc.fillText('N',710,22);
+  tc.strokeStyle='rgba(200,188,168,0.4)'; tc.lineWidth=1;
+  tc.beginPath(); tc.moveTo(714,25); tc.lineTo(714,36); tc.stroke();
+}
+
+// ── GAME INIT ────────────────────────────────────────────
+function initGame(){
+  G = {
+    phase:'start', wave:0, tick:0,
+    phaseTimer:0, stormTimer:0,
+    fog:0, whiteout:0,
+    windX:1.4, windY:0.2,
+    sheepSaved:0, sheepLost:0, sheepTotal:0,
+    snowPart:[], snowDrifts:[],
+    hayBales:[], shelters:[],
+    helpCalled:false, helpBoost:false,
+    vetCalled:false,
+    cooldowns:{}, selAction:null,
+    waveShown:{},
+    mx:380, my:320,
+    recoveredSheep:0, deadTotal:0, phase3Done:false,
+    dog:{ x:145, y:340, tx:145, ty:340, spd:3.2, moving:false },
+    sheep:[], barns:[],
+    wool:null,
+  };
+
+  G.barns = BARN_DEF.map(b=>({
+    ...b,
+    full:false,
+    sheepCount:0,
+    capacity:10,
+  }));
+
+  spawnSheep();
+  G.sheepTotal = G.sheep.reduce((s,sh)=>s+SCNT[sh.type],0);
+  updateUI();
+}
+
+function spawnSheep(){
+  // Type weights: 40% standard, 25% lamb, 20% ewe, 15% old
+  const typeWeights=[
+    {t:'standard',w:0.40},
+    {t:'lamb',    w:0.65},
+    {t:'ewe',     w:0.85},
+    {t:'old',     w:1.00},
+  ];
+  function pickType(){
+    const r=Math.random();
+    for(const tw of typeWeights) if(r<tw.w) return tw.t;
+    return 'old';
+  }
+  let spawned=0, attempts=0;
+  while(spawned<50 && attempts<3000){
+    attempts++;
+    const x=rnd(80,700), y=rnd(120,580);
+    const t=getTerrainPx(x,y);
+    if(t===T.LAKE||t===T.COAST) continue;
+    G.sheep.push({
+      x, y, vx:0, vy:0,
+      type:pickType(),
+      health:140,
+      state:'wander',
+      hasFeed:false,
+      eatTimer:0,
+      sheltered:false,
+      wa:rnd(0,Math.PI*2),
+      wt:0,
+      dogNudged:false,
+    });
+    spawned++;
+  }
+}
+
+// ── UPDATE: DOG ──────────────────────────────────────────
+function updateDog(){
+  const d=G.dog;
+  const dx=d.tx-d.x, dy=d.ty-d.y, dd=Math.hypot(dx,dy);
+  if(dd>2){
+    const nx=d.x+dx/dd*d.spd;
+    const ny=d.y+dy/dd*d.spd;
+    if(getTerrainPx(nx,ny)===T.LAKE){
+      d.moving=false;
+    } else {
+      d.x=nx; d.y=ny; d.moving=true;
+    }
+  } else {
+    d.moving=false;
+  }
+  d.x=clamp(d.x,8,W-8);
+  d.y=clamp(d.y,8,H-8);
+}
+
+// ── UPDATE: SHEEP ────────────────────────────────────────
+function updateSheep(){
+  const INF=82, BARN_R=36;
+
+  for(const sh of G.sheep){
+    if(sh.state==='saved'||sh.state==='dead'||sh.state==='clearing') continue;
+
+    // Eating: pause and count down
+    if(sh.state==='eating'){
+      sh.eatTimer--;
+      sh.vx=0; sh.vy=0;
+      if(sh.eatTimer<=0){ sh.state='wander'; }
+
+      continue;
+    }
+
+    // Buried: health handled in storm update, no movement
+    if(sh.state==='buried') continue;
+
+    // Wander angle drift
+    sh.wt--;
+    if(sh.wt<=0){ sh.wa+=(Math.random()-0.5)*2.0; sh.wt=35+Math.random()*55; }
+
+    let fx=0, fy=0;
+    if(G.phase==='phase1'){
+      const dd=dist(sh,G.dog);
+      if(dd<INF&&dd>0){
+        const str=(1-dd/INF)*2.4;
+        fx=(sh.x-G.dog.x)/dd*str;
+        fy=(sh.y-G.dog.y)/dd*str;
+        sh.dogNudged=true;
+      }
+    }
+
+    const ws=SSPEED[sh.type]*0.38;
+    sh.vx=sh.vx*0.82+(Math.cos(sh.wa)*ws+fx)*0.18;
+    sh.vy=sh.vy*0.82+(Math.sin(sh.wa)*ws+fy)*0.18;
+
+    if(G.wave>0){
+      sh.vx+=G.windX*0.008*G.wave;
+      sh.vy+=G.windY*0.008*G.wave;
+    }
+
+    // Water collision — bounce sheep away from lake with repulsion
+    const nx=sh.x+sh.vx, ny=sh.y+sh.vy;
+    if(getTerrainPx(nx,ny)===T.LAKE){
+      sh.vx=-sh.vx*0.8 + (sh.x>380?1:-1)*0.6;
+      sh.vy=-sh.vy*0.8 + (sh.y>320?1:-1)*0.6;
+    } else {
+      sh.x=nx; sh.y=ny;
+    }
+    // Secondary check — if sheep is already inside a lake, push toward centre
+    if(getTerrainPx(sh.x,sh.y)===T.LAKE){
+      sh.vx += (380-sh.x)*0.04;
+      sh.vy += (320-sh.y)*0.04;
+    }
+
+    // Bounds — push sheep back toward centre if near edge
+if(sh.x<30){  sh.x=30;  sh.vx=Math.abs(sh.vx)*0.8+0.5; }
+if(sh.x>W-30){sh.x=W-30;sh.vx=-Math.abs(sh.vx)*0.8-0.5; }
+if(sh.y<30){  sh.y=30;  sh.vy=Math.abs(sh.vy)*0.8+0.5; }
+if(sh.y>H-30){sh.y=H-30;sh.vy=-Math.abs(sh.vy)*0.8-0.5; }
+
+    // Barn capture
+    for(const barn of G.barns){
+      if(!barn.full&&dist(sh,barn)<BARN_R&&sh.dogNudged){ saveSheep(sh,barn); break; }
+    }
+    if(sh.state==='saved') continue;
+
+    // Phase 2 burial
+    if(G.wave>=2&&sh.state==='wander'){
+      const bc=G.wave===2?0.00018:0.00038;
+      if(Math.random()<bc) sh.state='buried';
+    }
+  }
+}
+
+function saveSheep(sh,barn){
+  sh.state='saved';
+  const n=SCNT[sh.type];
+  G.sheepSaved+=n;
+  if(barn){
+    barn.sheepCount+=1;
+    if(barn.sheepCount>=barn.capacity) barn.full=true;
+  }
+  updateUI();
+}
+
+// ── UPDATE: STORM ────────────────────────────────────────
+const WAVE1=1800, WAVE2=4200, WAVE3=7200;
+
+function updateStorm(){
+  G.stormTimer++;
+  const st=G.stormTimer;
+
+  if(st<WAVE1){
+    G.wave=1;
+    const t=st/WAVE1;
+    G.fog=lerp(0,0.28,t); G.whiteout=lerp(0,0.08,t);
+  } else if(st<WAVE2){
+    G.wave=2;
+    const t=(st-WAVE1)/(WAVE2-WAVE1);
+    G.fog=lerp(0.28,0.52,t); G.whiteout=lerp(0.08,0.32,t);
+    if(!G.waveShown[2]){ G.waveShown[2]=true;
+      showModal('Wave 2 — Heavy Blizzard','Visibility collapsing. Sheep may become buried in drifts. Dig them out before exposure kills them.'); }
+  } else if(st<WAVE3){
+    G.wave=3;
+    const t=(st-WAVE2)/(WAVE3-WAVE2);
+    G.fog=lerp(0.52,0.74,t); G.whiteout=lerp(0.32,0.64,t);
+    if(!G.waveShown[3]){ G.waveShown[3]=true;
+      showModal('Wave 3 — Near Whiteout','The worst of the storm. Every action counts. Buried sheep have little time left.'); }
+  } else {
+    endGame(); return;
+  }
+
+  // Snow particles
+  if(Math.random()<0.12*G.wave){
+    G.snowPart.push({
+      x:rnd(0,W), y:-4,
+      vx:-G.windX*(0.4+Math.random()*0.8),
+      vy:0.8+Math.random()*1.4,
+      r:0.6+Math.random()*1.4,
+      a:0.5+Math.random()*0.5,
+    });
+  }
+  for(let i=G.snowPart.length-1;i>=0;i--){
+    const p=G.snowPart[i];
+    p.x+=p.vx+G.windX*0.25; p.y+=p.vy;
+    if(p.y>H+4||p.x<-10||p.x>W+10){
+      if(Math.random()<0.04) G.snowDrifts.push({x:p.x,y:clamp(p.y,H-30,H),r:2+Math.random()*6});
+      G.snowPart.splice(i,1);
+    }
+  }
+  for(const d of G.snowDrifts){ if(d.r<22) d.r+=0.008; }
+
+  // Health degradation every 2s
+  if(G.tick%120===0){
+    for(const sh of G.sheep){
+      if(sh.state==='dead'||sh.state==='saved'||sh.state==='clearing') continue;
+      const tr=getTerrainPx(sh.x,sh.y);
+      let risk=TRISK[tr]*9;
+      // Wave severity multipliers
+      if(G.wave===1)      risk*=0.35;
+      else if(G.wave===2) risk*=0.65;
+      // Wave 3: full multiplier
+      if(sh.hasFeed)    risk*=0.45;
+      if(sh.sheltered)  risk*=0.50;
+      if(sh.type==='lamb') risk*=1.5;
+      if(sh.type==='old')  risk*=1.3;
+      if(sh.state==='buried') risk*=1.8;
+      sh.health-=risk;
+      if(sh.health<=0){
+        sh.state='dead';
+        G.sheepLost+=SCNT[sh.type];
+        updateUI();
+      }
+    }
+  }
+}
+
+// ── UPDATE: PHASE 1 ──────────────────────────────────────
+function updatePhase1(){
+  G.phaseTimer++;
+  G.fog=Math.min(0.06,G.phaseTimer/3600*0.06);
+  const saved=G.sheepSaved/Math.max(1,G.sheepTotal);
+  if(G.phaseTimer>3600||saved>=0.70) transitionP2();
+  updateDog();
+  updateSheep();
+}
+
+function transitionP2(){
+  G.phase='transition';
+  showScreen('p2intro');
+}
+
+// ── UPDATE: PHASE 3 ──────────────────────────────────────
+function updatePhase3(){
+  if(G.phase3Done) return;
+  // Tick clearing animations
+  for(let i=G.sheep.length-1;i>=0;i--){
+    const sh=G.sheep[i];
+    if(sh.state==='clearing'){
+      sh.clearTimer--;
+      if(sh.clearTimer<=0) G.sheep.splice(i,1);
+    }
+  }
+  // Check if all cleared
+  const hasRemaining=G.sheep.some(s=>s.state==='dead'||s.state==='clearing');
+  if(!hasRemaining){
+    G.phase3Done=true;
+    G.phase='end';
+    showScreen('end');
+  }
+}
+
+// ── UPDATE: WOOL ─────────────────────────────────────────
+function updateWool(){
+  const w=G.wool;
+  if(!w) return;
+
+  if(w.stage===1){
+    // Animate falling wool pixels
+    for(let i=w.woolPixels.length-1;i>=0;i--){
+      const p=w.woolPixels[i];
+      p.x+=p.vx; p.y+=p.vy; p.vy+=0.18;
+      p.alpha-=0.011;
+      if(p.alpha<=0||p.y>500) w.woolPixels.splice(i,1);
+    }
+  }
+  else if(w.stage===2){
+    if(w.washAnimating){
+      w.washTimer++;
+      if(Math.random()<0.25){
+        w.waterRipples.push({x:rnd(260,500),y:rnd(325,390),radius:2,alpha:0.8});
+      }
+      for(let i=w.waterRipples.length-1;i>=0;i--){
+        const r=w.waterRipples[i];
+        r.radius+=1.1; r.alpha-=0.038;
+        if(r.alpha<=0) w.waterRipples.splice(i,1);
+      }
+      if(w.washTimer>=90 && !w.washDone){
+        w.washDone=true;
+        w.washAnimating=false;
+        setTimeout(()=>{ if(G.wool) G.wool.stage=3; },700);
+      }
+    }
+  }
+  else if(w.stage===3){
+    if(w.cardAnimating){
+      w.cardTimer++;
+      if(w.cardTimer>=60 && !w.cardDone){
+        w.cardDone=true;
+        w.cardAnimating=false;
+        setTimeout(()=>{ if(G.wool) G.wool.stage=4; },700);
+      }
+    }
+  }
+  // Stage 4: handled by clicks; stage 5: handled in draw
+}
+
+// ── DRAW: TERRAIN ────────────────────────────────────────
+function drawTerrain(){
+  if(tcache) ctx.drawImage(tcache,0,0);
+}
+
+// ── DRAW: ATMOSPHERE ─────────────────────────────────────
+function drawAtmosphere(){
+  if(G.phase==='phase1'){
+    const t=G.phaseTimer/7200;
+    const grad=ctx.createLinearGradient(W*0.5,0,W,0);
+    grad.addColorStop(0,'rgba(0,0,0,0)');
+    grad.addColorStop(1,`rgba(18,28,48,${t*0.45})`);
+    ctx.fillStyle=grad; ctx.fillRect(0,0,W,H);
+    if(t>0.25){
+      const bg=ctx.createLinearGradient(W*0.65,0,W,0);
+      bg.addColorStop(0,'rgba(200,218,248,0)');
+      bg.addColorStop(1,`rgba(200,218,248,${(t-0.25)*0.32})`);
+      ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    }
+  }
+  if(G.phase==='phase2'||G.phase==='transition'){
+    ctx.fillStyle=`rgba(192,205,215,${G.fog})`; ctx.fillRect(0,0,W,H);
+    if(G.whiteout>0){
+      const vg=ctx.createRadialGradient(W/2,H/2,H*0.28,W/2,H/2,H*0.85);
+      vg.addColorStop(0,'rgba(215,228,242,0)');
+      vg.addColorStop(1,`rgba(215,228,242,${G.whiteout})`);
+      ctx.fillStyle=vg; ctx.fillRect(0,0,W,H);
+    }
+  }
+}
+
+// ── DRAW: DRIFTS ─────────────────────────────────────────
+function drawDrifts(){
+  ctx.save(); ctx.globalAlpha=0.55; ctx.fillStyle='#d8e4ee';
+  for(const d of G.snowDrifts){
+    ctx.beginPath();
+    ctx.ellipse(d.x,d.y,d.r,d.r*0.38,0,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── DRAW: SNOW PARTICLES ─────────────────────────────────
+function drawSnowPart(){
+  ctx.save(); ctx.fillStyle='#eef2ff';
+  const vf=Math.min(1,G.fog*3+0.2);
+  for(const p of G.snowPart){
+    ctx.globalAlpha=p.a*vf;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// ── DRAW: BARNS ──────────────────────────────────────────
+function drawBarns(){
+  for(const b of G.barns){
+    const x=Math.round(b.x), y=Math.round(b.y);
+    const open=!b.full;
+    ctx.fillStyle=open?'#8a7848':'#4a3c2c';
+    ctx.fillRect(x-14,y-8,28,18);
+    ctx.fillStyle=open?'#786838':'#3c3020';
+    ctx.beginPath();
+    ctx.moveTo(x-16,y-8); ctx.lineTo(x,y-22); ctx.lineTo(x+16,y-8);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle=open?'#4a3818':'#2c2010';
+    ctx.fillRect(x-4,y+2,8,8);
+    ctx.fillStyle='rgba(0,0,0,0.2)';
+    for(let bx=x-12;bx<x+12;bx+=4)
+      for(let by=y-6;by<y+10;by+=4) ctx.fillRect(bx,by,1,1);
+    // Barn name — always solid black for legibility
+    ctx.font='10px VT323,monospace'; ctx.textAlign='center';
+    ctx.fillStyle='#000000';
+    ctx.fillText(b.name,x,y-25);
+    ctx.fillStyle=open?'#78a850':'#b04828';
+    const label=open?(b.sheepCount+'/'+b.capacity):'FULL';
+    ctx.fillText(label,x,y+20);
+    if(b.sheepCount>0 && open){
+      ctx.fillStyle='rgba(168,198,148,0.9)';
+      ctx.fillText('✓'+b.sheepCount,x,y+30);
+    }
+    if(G.phase==='phase1'&&open){
+      ctx.strokeStyle='rgba(88,168,68,0.18)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(b.x,b.y,36,0,Math.PI*2); ctx.stroke();
+    }
+  }
+}
+
+// ── DRAW: SHEEP ──────────────────────────────────────────
+function drawSheep(){
+  for(const sh of G.sheep){
+    if(sh.state==='saved') continue;
+    const x=Math.round(sh.x), y=Math.round(sh.y);
+
+    // Clearing fade-out animation
+    if(sh.state==='clearing'){
+      const alpha=(sh.clearTimer/30)*0.6;
+      ctx.save(); ctx.globalAlpha=alpha;
+      ctx.strokeStyle='rgba(168,52,32,0.9)'; ctx.lineWidth=2;
+      ctx.beginPath();
+      ctx.moveTo(x-6,y-6); ctx.lineTo(x+6,y+6);
+      ctx.moveTo(x+6,y-6); ctx.lineTo(x-6,y+6);
+      ctx.stroke();
+      ctx.restore();
+      continue;
+    }
+
+    // Dead sheep
+    if(sh.state==='dead'){
+      const isHovered=G.phase==='phase3'&&dist({x:G.mx,y:G.my},sh)<20;
+      if(isHovered){
+        ctx.strokeStyle='rgba(220,200,150,0.55)'; ctx.lineWidth=2;
+        ctx.strokeRect(x-11,y-11,22,22);
+      }
+      ctx.strokeStyle=isHovered?'rgba(220,80,40,0.85)':'rgba(220,80,40,0.90)';
+      ctx.lineWidth=1.5;
+      ctx.beginPath();
+      ctx.moveTo(x-5,y-5); ctx.lineTo(x+5,y+5);
+      ctx.moveTo(x+5,y-5); ctx.lineTo(x-5,y+5);
+      ctx.stroke();
+      continue;
+    }
+
+    const buried=sh.state==='buried';
+    let bw=14,bh=9;
+    if(sh.type==='lamb'){ bw=9;  bh=6;  }
+    if(sh.type==='ewe'){  bw=17; bh=11; }
+
+    ctx.save();
+    if(buried) ctx.globalAlpha=0.72;
+
+    const col=sh.type==='lamb'?'#deded6':'#d2cec4';
+    ctx.fillStyle=col;
+    ctx.fillRect(x-bw/2,y-bh/2,bw,bh);
+    ctx.fillStyle='rgba(0,0,0,0.22)';
+    for(let wx=x-bw/2+1;wx<x+bw/2-1;wx+=4) ctx.fillRect(wx,y-bh/2+1,2,2);
+    ctx.fillStyle='#242018';
+    ctx.fillRect(x+bw/2-4,y-4,6,6);
+    ctx.fillStyle='#1c1a14';
+    const ly=y+bh/2;
+    ctx.fillRect(x-bw/2+2,ly,2,4);
+    ctx.fillRect(x-bw/2+6,ly,2,4);
+    ctx.fillRect(x+bw/2-8,ly,2,4);
+    ctx.fillRect(x+bw/2-4,ly,2,4);
+    ctx.font='9px VT323,monospace'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(210,198,168,0.88)';
+    ctx.fillText('×'+SCNT[sh.type],x,y-bh/2-2);
+    ctx.restore();
+
+    // Pulsing outline ring for buried sheep
+    if(buried){
+      const pulseAlpha=0.75+Math.sin(G.tick*0.12)*0.20;
+      ctx.save();
+      ctx.globalAlpha=pulseAlpha;
+      ctx.strokeStyle='rgba(220,235,255,0.85)';
+      ctx.lineWidth=2;
+      ctx.strokeRect(x-bw/2-3,y-bh/2-3,bw+6,bh+6);
+      ctx.restore();
+    }
+
+    // Health bar (phase 2)
+    if(G.phase==='phase2'&&!buried){
+      const hp=sh.health/140;
+      ctx.fillStyle='rgba(0,0,0,0.5)';
+      ctx.fillRect(x-9,y-bh/2-8,18,3);
+      ctx.fillStyle=hp>0.5?'#70a048':hp>0.25?'#c09830':'#c03828';
+      ctx.fillRect(x-9,y-bh/2-8,18*hp,3);
+    }
+
+    // Feed/eating indicator
+    const showFeed=(sh.hasFeed||sh.state==='eating')&&G.phase==='phase2';
+    if(showFeed){
+      ctx.font='9px sans-serif'; ctx.textAlign='center';
+      ctx.fillText('🌾',x,y-bh/2-(buried?14:11));
+    }
+  }
+}
+
+// ── DRAW: DOG ────────────────────────────────────────────
+function drawDog(){
+  if(G.phase!=='phase1') return;
+  const d=G.dog;
+  const x=Math.round(d.x), y=Math.round(d.y);
+  ctx.fillStyle='#1c1a14'; ctx.fillRect(x-6,y-4,12,8);
+  ctx.fillStyle='#d8d0c0'; ctx.fillRect(x-4,y-2,5,5);
+  ctx.fillStyle='#1c1a14'; ctx.fillRect(x+4,y-5,5,5);
+  ctx.fillStyle='#c07828'; ctx.fillRect(x+5,y-4,1,1);
+  ctx.fillStyle='#1c1a14';
+  ctx.fillRect(x-5,y+4,2,4); ctx.fillRect(x-1,y+4,2,4); ctx.fillRect(x+3,y+4,2,4);
+  ctx.fillRect(x-10,y-2,4,2);
+  ctx.strokeStyle='rgba(188,168,128,0.08)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.arc(d.x,d.y,82,0,Math.PI*2); ctx.stroke();
+  if(dist(d,{x:d.tx,y:d.ty})>6){
+    ctx.strokeStyle='rgba(188,168,128,0.35)'; ctx.lineWidth=1; ctx.setLineDash([3,4]);
+    ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.tx,d.ty); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle='rgba(188,168,128,0.55)';
+    ctx.fillRect(d.tx-2,d.ty-2,4,4);
+  }
+}
+
+// ── DRAW: HUD ────────────────────────────────────────────
+function drawHUD(){
+  ctx.font='13px VT323,monospace'; ctx.textAlign='left';
+  const start=new Date('2018-02-24T08:00:00');
+  const hrs=G.tick/60/60*24;
+  const gdate=new Date(start.getTime()+hrs*3600000);
+  const ds=gdate.toLocaleDateString('en-GB',{day:'numeric',month:'short'})+
+           ' '+gdate.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  ctx.fillStyle='rgba(195,182,155,0.72)'; ctx.fillText(ds,8,18);
+
+  if(G.phase==='phase2'){
+    const wl=['','WAVE 1 — LIGHT SNOW','WAVE 2 — HEAVY BLIZZARD','WAVE 3 — NEAR WHITEOUT'];
+    ctx.textAlign='center';
+    const alpha=0.65+Math.sin(G.tick*0.12)*0.2;
+    ctx.fillStyle=`rgba(175,205,238,${alpha})`;
+    ctx.font='15px VT323,monospace';
+    ctx.fillText(wl[G.wave]||'',W/2,18);
+    ctx.textAlign='left';
+  }
+
+  if(G.phase==='phase1'){
+    const rem=Math.max(0,Math.ceil((7200-G.phaseTimer)/60));
+    ctx.textAlign='right';
+    ctx.fillStyle=rem<30?'rgba(185,80,40,0.85)':'rgba(168,152,118,0.65)';
+    ctx.font='13px VT323,monospace';
+    ctx.fillText('Storm in ~'+rem+'s',W-8,18);
+    ctx.textAlign='left';
+  }
+
+  if(G.phase==='phase3'){
+    const dead=G.sheep.filter(s=>s.state==='dead'||s.state==='clearing').length;
+    const cleared=G.deadTotal-dead;
+    ctx.textAlign='center';
+    ctx.font='15px VT323,monospace';
+    ctx.fillStyle='rgba(195,210,220,0.85)';
+    ctx.fillText('Field cleared: '+cleared+' / '+G.deadTotal,W/2,H-18);
+    ctx.textAlign='left';
+  }
+}
+
+// ── DRAW: CURSOR LABEL ───────────────────────────────────
+function drawCursor(){
+  if(G.phase==='phase2'&&G.selAction){
+    const icons={hay:'≡',dig:'+',move:'→',shelter:'⌂',blanket:'~',vet:'+'};
+    ctx.font='16px VT323,monospace';
+    ctx.fillStyle='rgba(200,185,148,0.8)';
+    ctx.textAlign='left';
+    ctx.fillText((icons[G.selAction]||'')+'  '+G.selAction.toUpperCase(),G.mx+10,G.my-8);
+  }
+  if(G.phase==='phase3'){
+    ctx.font='15px VT323,monospace';
+    ctx.fillStyle='rgba(200,185,148,0.85)';
+    ctx.textAlign='left';
+    ctx.fillText('✛  CLEAR',G.mx+10,G.my-8);
+  }
+}
+
+// ── DRAW: WOOL MINI-GAME ─────────────────────────────────
+function drawWool(){
+  ctx.fillStyle='#0c0c0a';
+  ctx.fillRect(0,0,W,H);
+  // Knit dot texture on background
+  ctx.fillStyle='rgba(255,255,255,0.03)';
+  for(let y=2;y<H;y+=4){
+    for(let x=(Math.floor(y/4)%2===0?2:0);x<W;x+=4) ctx.fillRect(x,y,1,1);
+  }
+  // Header strip
+  ctx.fillStyle='rgba(200,188,160,0.08)';
+  ctx.fillRect(0,0,W,48);
+  ctx.font='14px VT323,monospace';
+  ctx.textAlign='center';
+  ctx.fillStyle='rgba(190,178,148,0.50)';
+  ctx.fillText('FROM FLEECE TO CLOTH — FIVE STAGES',W/2,30);
+
+  const w=G.wool;
+  if(!w) return;
+  switch(w.stage){
+    case 1: drawWoolS1(w); break;
+    case 2: drawWoolS2(w); break;
+    case 3: drawWoolS3(w); break;
+    case 4: drawWoolS4(w); break;
+    case 5: drawWoolS5(w); break;
+  }
+}
+
+function woolStageLabel(n,title,hint){
+  ctx.font='20px VT323,monospace'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(192,180,150,0.85)';
+  ctx.fillText('STAGE '+n+' — '+title,W/2,70);
+  ctx.font='13px VT323,monospace';
+  ctx.fillStyle='rgba(148,136,108,0.65)';
+  ctx.fillText(hint,W/2,92);
+}
+
+function drawBigSheep(cx,cy,woolCov){
+  const sc=3.5, bw=Math.round(14*sc), bh=Math.round(9*sc);
+  // Grey skin underneath
+  ctx.fillStyle='#8a8880';
+  ctx.fillRect(cx-bw/2,cy-bh/2,bw,bh);
+  // Wool layer fades with shear progress
+  if(woolCov>0){
+    ctx.fillStyle=`rgba(210,206,196,${woolCov})`;
+    ctx.fillRect(cx-bw/2,cy-bh/2,bw,bh);
+    ctx.fillStyle=`rgba(0,0,0,${0.20*woolCov})`;
+    for(let wx=cx-bw/2+3;wx<cx+bw/2-2;wx+=7)
+      ctx.fillRect(wx,cy-bh/2+4,4,4);
+  }
+  ctx.fillStyle='#242018';
+  ctx.fillRect(cx+bw/2-14,cy-14,20,20);
+  ctx.fillStyle='#c07828'; ctx.fillRect(cx+bw/2-10,cy-9,3,3);
+  ctx.fillStyle='#1c1a14';
+  const ly=cy+bh/2;
+  ctx.fillRect(cx-bw/2+4, ly,6,16);
+  ctx.fillRect(cx-bw/2+18,ly,6,16);
+  ctx.fillRect(cx+bw/2-24,ly,6,16);
+  ctx.fillRect(cx+bw/2-10,ly,6,16);
+}
+
+function drawWoolS1(w){
+  woolStageLabel(1,'SHEARING',
+    w.shearClicks<5?'Click the sheep to shear':'Shearing complete — advancing…');
+
+  const cx=340,cy=295;
+  const sc=3.5,bw=Math.round(14*sc),bh=Math.round(9*sc);
+  const woolCov=Math.max(0,1-w.shearClicks/5);
+  drawBigSheep(cx,cy,woolCov);
+
+  // Pulsing click-me border
+  if(w.shearClicks<5){
+    const pa=0.35+Math.sin(G.tick*0.1)*0.2;
+    ctx.strokeStyle=`rgba(200,185,148,${pa})`; ctx.lineWidth=2;
+    ctx.strokeRect(cx-bw/2-10,cy-bh/2-10,bw+20,bh+36);
+  }
+
+  // Falling wool pixels
+  ctx.fillStyle='rgba(212,208,198,0.9)';
+  for(const p of w.woolPixels){
+    ctx.save(); ctx.globalAlpha=p.alpha;
+    ctx.fillRect(p.x-p.size/2,p.y-p.size/2,p.size,p.size);
+    ctx.restore();
+  }
+
+  // Wool pile
+  if(w.shearClicks>0){
+    const pw=50*w.shearClicks, ph=8+w.shearClicks*4;
+    ctx.fillStyle='#d2cec4';
+    ctx.fillRect(cx-pw/2,430,pw,ph);
+    ctx.fillStyle='rgba(0,0,0,0.14)';
+    for(let px=cx-pw/2+2;px<cx+pw/2;px+=5)
+      for(let py=432;py<430+ph;py+=5)
+        ctx.fillRect(px,py,2,2);
+    ctx.font='11px VT323,monospace'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(158,146,118,0.7)';
+    ctx.fillText('FLEECE',cx,430+ph+14);
+  }
+
+  // Progress
+  ctx.font='18px VT323,monospace'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(190,178,148,0.9)';
+  ctx.fillText('Shearing… '+w.shearClicks+'/5',W/2,H-28);
+
+  // Right-side info panel
+  ctx.font='13px VT323,monospace'; ctx.textAlign='left';
+  ctx.fillStyle='rgba(148,136,108,0.55)';
+  const info=['Shearing removes the fleece','without harming the animal.','','A full fleece may weigh','up to 4 kg.'];
+  info.forEach((line,i)=>ctx.fillText(line,490,200+i*22));
+}
+
+function drawWoolS2(w){
+  const t=Math.min(1,w.washTimer/90);
+  woolStageLabel(2,'WASHING',
+    w.washAnimating?'Washing the fleece…':
+    w.washDone?'Fleece clean — advancing…':
+    'Click WASH to clean the fleece');
+
+  // Basin
+  ctx.fillStyle='#1e4460';
+  ctx.fillRect(228,290,304,110);
+  ctx.fillStyle='rgba(40,90,140,0.5)';
+  ctx.fillRect(230,292,300,14);
+  // Water surface shimmer
+  if(w.washAnimating){
+    ctx.fillStyle=`rgba(80,150,210,${0.1+Math.sin(G.tick*0.15)*0.05})`;
+    ctx.fillRect(230,292,300,14);
+  }
+
+  // Wool inside (colour lerps)
+  const woolCol=lerpColor('#d2cec4','#f0eeea',t);
+  ctx.fillStyle=woolCol;
+  ctx.fillRect(268,318,224,60);
+  ctx.fillStyle='rgba(0,0,0,0.13)';
+  for(let bx=270;bx<490;bx+=5)
+    for(let by=320;by<376;by+=5) ctx.fillRect(bx,by,2,2);
+
+  // Water ripples
+  for(const r of w.waterRipples){
+    ctx.save(); ctx.globalAlpha=r.alpha;
+    ctx.strokeStyle='rgba(140,195,235,0.8)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.arc(r.x,r.y,r.radius,0,Math.PI*2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // WASH button
+  if(!w.washAnimating&&!w.washDone){
+    ctx.fillStyle='#1a3040';
+    ctx.fillRect(312,432,136,34);
+    ctx.strokeStyle='rgba(70,140,200,0.7)'; ctx.lineWidth=2;
+    ctx.strokeRect(312,432,136,34);
+    ctx.font='22px VT323,monospace'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(170,210,240,0.95)';
+    ctx.fillText('WASH',W/2,455);
+  }
+
+  // Progress bar
+  if(w.washAnimating||w.washDone){
+    ctx.fillStyle='rgba(0,0,0,0.4)';
+    ctx.fillRect(228,416,304,8);
+    ctx.fillStyle='rgba(80,160,220,0.8)';
+    ctx.fillRect(228,416,304*t,8);
+  }
+
+  ctx.font='13px VT323,monospace'; ctx.textAlign='left';
+  ctx.fillStyle='rgba(148,136,108,0.55)';
+  const info=['Washing removes lanolin,','dirt, and debris','from the raw fleece.'];
+  info.forEach((line,i)=>ctx.fillText(line,490,210+i*22));
+}
+
+function drawWoolS3(w){
+  const t=Math.min(1,w.cardTimer/60);
+  woolStageLabel(3,'CARDING',
+    w.cardAnimating?'Carding — aligning the fibres':
+    w.cardDone?'Fibres aligned — advancing…':
+    'Click CARD to begin carding');
+
+  // Left comb
+  ctx.fillStyle='#5a4a30';
+  ctx.fillRect(108,265,52,110);
+  ctx.fillStyle='#4a3a20';
+  for(let i=0;i<9;i++) ctx.fillRect(160,270+i*11,22,6);
+
+  // Right comb
+  ctx.fillStyle='#5a4a30';
+  ctx.fillRect(600,265,52,110);
+  ctx.fillStyle='#4a3a20';
+  for(let i=0;i<9;i++) ctx.fillRect(578,270+i*11,22,6);
+
+  // Wool / combed fibres
+  if(t<0.9){
+    ctx.fillStyle=lerpColor('#f0eeea','#e8e4de',t);
+    ctx.fillRect(272,285,216,90);
+    ctx.fillStyle='rgba(0,0,0,0.12)';
+    for(let bx=274;bx<486;bx+=5)
+      for(let by=287;by<373;by+=5) ctx.fillRect(bx,by,2,2);
+  } else {
+    // Combed horizontal lines
+    for(let i=0;i<18;i++){
+      const lineY=288+i*5;
+      const a=0.55+Math.random()*0.3;
+      ctx.fillStyle=`rgba(240,238,234,${a})`;
+      ctx.fillRect(190,lineY,380,2);
+    }
+  }
+
+  // Comb handle decoration
+  ctx.fillStyle='#3a2a14';
+  ctx.fillRect(108,365,52,30); ctx.fillRect(600,365,52,30);
+
+  // CARD button
+  if(!w.cardAnimating&&!w.cardDone){
+    ctx.fillStyle='#202818';
+    ctx.fillRect(312,460,136,34);
+    ctx.strokeStyle='rgba(120,140,80,0.7)'; ctx.lineWidth=2;
+    ctx.strokeRect(312,460,136,34);
+    ctx.font='22px VT323,monospace'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(190,205,148,0.95)';
+    ctx.fillText('CARD',W/2,483);
+  }
+  if(w.cardAnimating||w.cardDone){
+    ctx.fillStyle='rgba(0,0,0,0.4)';
+    ctx.fillRect(228,446,304,8);
+    ctx.fillStyle='rgba(120,160,80,0.8)';
+    ctx.fillRect(228,446,304*t,8);
+  }
+
+  ctx.font='13px VT323,monospace'; ctx.textAlign='left';
+  ctx.fillStyle='rgba(148,136,108,0.55)';
+  const info=['Carding untangles fibres','and aligns them parallel,','ready for spinning.'];
+  info.forEach((line,i)=>ctx.fillText(line,490,210+i*22));
+}
+
+function drawWoolS4(w){
+  woolStageLabel(4,'SPINNING','Spinning the yarn… click the wheel to spin');
+
+  const wx=200, wy=320, wr=68;
+
+  // Wheel rotation animation
+  const sa=(G.tick*0.06*(w.spinClicks>0?1:0.1));
+
+  // Wheel frame / base
+  ctx.fillStyle='#5a4028';
+  ctx.fillRect(wx-10,wy+wr,20,44);
+  ctx.fillRect(wx-65,wy+wr+34,130,10);
+  ctx.fillRect(wx-65,wy+wr+34,8,120);
+  ctx.fillRect(wx+57,wy+wr+34,8,120);
+
+  // Rim
+  ctx.strokeStyle='#8a6840'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.arc(wx,wy,wr,0,Math.PI*2); ctx.stroke();
+  // Spokes
+  ctx.lineWidth=2.5;
+  for(let i=0;i<8;i++){
+    const a=sa+i*Math.PI/4;
+    ctx.beginPath(); ctx.moveTo(wx,wy);
+    ctx.lineTo(wx+Math.cos(a)*wr,wy+Math.sin(a)*wr); ctx.stroke();
+  }
+  // Hub
+  ctx.fillStyle='#b08850';
+  ctx.beginPath(); ctx.arc(wx,wy,9,0,Math.PI*2); ctx.fill();
+
+  // Distaff (vertical post with fleece nub)
+  ctx.fillStyle='#5a4028';
+  ctx.fillRect(wx+90,wy-80,8,120);
+  ctx.fillStyle='#e8e4de';
+  ctx.beginPath(); ctx.arc(wx+94,wy-80,10,0,Math.PI*2); ctx.fill();
+
+  // Click hint pulse on wheel
+  if(w.spinClicks<8){
+    const pa=0.28+Math.sin(G.tick*0.14)*0.18;
+    ctx.strokeStyle=`rgba(200,185,148,${pa})`; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(wx,wy,wr+12,0,Math.PI*2); ctx.stroke();
+  }
+
+  // Yarn strand growing rightward
+  if(w.spinClicks>0){
+    const yarnLen=w.yarnT*(W-350);
+    ctx.strokeStyle='#f0eeea'; ctx.lineWidth=2;
+    ctx.beginPath();
+    const startX=wx+wr+8, startY=wy;
+    ctx.moveTo(startX,startY);
+    const steps=Math.floor(yarnLen/3);
+    for(let i=1;i<=steps;i++){
+      const px=startX+i*3;
+      const py=startY+Math.sin(i*0.45)*14;
+      ctx.lineTo(px,py);
+    }
+    ctx.stroke();
+
+    // Yarn ball at far end
+    if(w.spinClicks>=5){
+      const bx=startX+yarnLen, by=startY;
+      ctx.fillStyle='#f0eeea';
+      ctx.beginPath(); ctx.arc(bx,by,14,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='rgba(200,196,186,0.6)'; ctx.lineWidth=1.2;
+      for(let i=1;i<=4;i++){
+        ctx.beginPath(); ctx.arc(bx,by,3+i*2,0,Math.PI*2); ctx.stroke();
+      }
+    }
+  }
+
+  // Progress
+  ctx.font='18px VT323,monospace'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(190,178,148,0.9)';
+  ctx.fillText('Spinning the yarn… '+w.spinClicks+'/8',W/2,H-28);
+
+  ctx.font='13px VT323,monospace'; ctx.textAlign='left';
+  ctx.fillStyle='rgba(148,136,108,0.55)';
+  const info=['The spinning wheel twists','fibres into a continuous','yarn thread.'];
+  info.forEach((line,i)=>ctx.fillText(line,500,210+i*22));
+}
+
+function drawWoolS5(w){
+  w.weaveTimer++;
+  const swX=490, swY=68, swW=230, swH=220;
+  const tileH=TILE, tileW=TILE;
+  const totalRows=Math.ceil(swH/tileH);
+  const builtRows=Math.min(totalRows,Math.floor(w.weaveTimer/2));
+
+  ctx.fillStyle='#1a1814';
+  ctx.fillRect(swX,swY,swW,swH);
+
+  for(let r=0;r<builtRows;r++){
+    for(let c=0;c<Math.ceil(swW/tileW);c++){
+      const tx=swX+c*tileW, ty=swY+r*tileH;
+      ctx.fillStyle=((r+c)%2===0)?'#f0eeea':'#e8e4de';
+      ctx.fillRect(tx,ty,tileW,tileH);
+    }
+    ctx.fillStyle='rgba(0,0,0,0.16)';
+    for(let c=0;c<Math.ceil(swW/tileW);c++){
+      ctx.fillRect(swX+c*tileW+(r%2===0?2:0),swY+r*tileH+2,2,2);
+    }
+    if(r%4===0){
+      ctx.fillStyle='rgba(180,170,148,0.18)';
+      ctx.fillRect(swX,swY+r*tileH,swW,tileH);
+    }
+  }
+
+  ctx.strokeStyle='rgba(148,136,110,0.7)'; ctx.lineWidth=2;
+  ctx.strokeRect(swX,swY,swW,swH);
+
+  ctx.font='20px VT323,monospace'; ctx.textAlign='center';
+  ctx.fillStyle='rgba(192,180,150,0.85)';
+  ctx.fillText('STAGE 5 — WEAVING',W/2,70);
+
+  ctx.font='13px VT323,monospace';
+  ctx.fillStyle='rgba(148,136,108,0.65)';
+  ctx.fillText(builtRows>=totalRows?'The cloth is complete.':'Weaving row by row…',W/2,92);
+
+  if(builtRows<totalRows){
+    ctx.font='16px VT323,monospace'; ctx.textAlign='left';
+    ctx.fillStyle='rgba(185,174,145,0.75)';
+    ['The grass grew.','The sheep grazed.','The fleece was shorn.',
+     '','The fibre was washed,','combed, and spun.','','Now — cloth.']
+      .forEach((line,i)=>ctx.fillText(line,48,160+i*28));
+    ctx.fillStyle='rgba(0,0,0,0.4)';
+    ctx.fillRect(swX,swY+swH+8,swW,6);
+    ctx.fillStyle='rgba(190,178,148,0.7)';
+    ctx.fillRect(swX,swY+swH+8,swW*(builtRows/totalRows),6);
+  }
+
+  if(builtRows>=totalRows){
+    if(!w.weaveDone) w.weaveDone=true;
+
+    ctx.font='16px VT323,monospace'; ctx.textAlign='left';
+    ctx.fillStyle='rgba(185,174,145,0.75)';
+    ['The grass grew.','The sheep grazed.','The fleece was shorn.',
+     '','The fibre was washed,','combed, and spun.','','Now — cloth.']
+      .forEach((line,i)=>ctx.fillText(line,48,160+i*28));
+
+    ctx.font='18px VT323,monospace'; ctx.textAlign='left';
+    ctx.fillStyle='rgba(205,193,162,0.92)';
+    ctx.fillText('"This is where it begins',48,390);
+    ctx.fillText('— and where it returns."',48,414);
+
+    ctx.fillStyle='#1e1c16';
+    ctx.fillRect(48,450,200,38);
+    ctx.strokeStyle='rgba(148,136,108,0.8)'; ctx.lineWidth=2;
+    ctx.strokeRect(48,450,200,38);
+    ctx.font='22px VT323,monospace'; ctx.textAlign='center';
+    ctx.fillStyle='rgba(205,193,162,0.95)';
+    ctx.fillText('Play Again',148,475);
+  }
+}
+
+
+// ── UI PANEL ─────────────────────────────────────────────
+function updateUI(){
+  document.getElementById('u-saved').textContent=G.sheepSaved;
+  document.getElementById('u-lost').textContent=G.sheepLost;
+  const wl={0:'—',1:'Light Snow',2:'Blizzard',3:'Whiteout'};
+  document.getElementById('u-wave').textContent=
+    G.phase==='phase1'?'Incoming…':
+    G.phase==='phase3'?'Recovery':
+    wl[G.wave]||'—';
+  const start=new Date('2018-02-24');
+  const d=new Date(start.getTime()+(G.tick/60/60*24)*3600000);
+  document.getElementById('u-date').textContent=
+    d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
+  updateActions();
+}
+
+function updateActions(){
+  const area=document.getElementById('action-area');
+  area.innerHTML='';
+
+  if(G.phase==='phase1'){
+    area.innerHTML='<p style="font-size:12px;color:#3a3a2c;line-height:1.4">Click the map to guide your sheepdog. Herd sheep to the <span style="color:#78a858">OPEN</span> barns before the storm.</p>';
+    return;
+  }
+  if(G.phase==='phase3'){
+    const dead=G.sheep.filter(s=>s.state==='dead'||s.state==='clearing').length;
+    area.innerHTML='<p style="font-size:12px;color:#4a5a60;line-height:1.4">Click each <span style="color:#b04828">✕</span> marker on the map to clear fallen animals from the field.</p>'+
+      `<p style="font-size:14px;color:#6a7870;margin-top:6px">${dead} remaining</p>`;
+    return;
+  }
+  if(G.phase!=='phase2') return;
+
+  document.getElementById('action-title').textContent='Wave '+G.wave+' Actions';
+
+  const defs=[
+    {id:'dig',    label:'Dig Out Sheep',       sub:'Click buried sheep to rescue',
+     waves:[2,3],   cd:90,
+     fn:()=>{ G.selAction='dig';     canvas.style.cursor='crosshair'; updateActions(); }},
+    {id:'move',   label:'Move to Barn',        sub:'Wave 1 only — click a flock',
+     waves:[1],     cd:600,
+     fn:()=>{ G.selAction='move';    canvas.style.cursor='crosshair'; updateActions(); }},
+    {id:'blanket',label:'Bring Blankets',      sub:'Click weak sheep (<40hp) to warm',
+     waves:[1,2,3], cd:200,
+     fn:()=>{ G.selAction='blanket'; canvas.style.cursor='crosshair'; updateActions(); }},
+    {id:'help',   label:'Call Neighbours',     sub:G.helpCalled?'Already called':'Boosts rescue chance',
+     waves:[1,2,3], cd:0, once:'help',
+     fn:()=>{
+       if(!G.helpCalled){
+         G.helpCalled=true; G.helpBoost=true;
+         setTimeout(()=>G.helpBoost=false,60000);
+         showModal('Help Answered','A neighbour arrives through the snow. Your dig-out success rate is improved for 60 seconds.');
+         updateActions();
+       }
+     }},
+    {id:'vet',    label:'Call the Vet',        sub:G.vetCalled?'Already called':'One-time: saves critical animals',
+     waves:[2,3],   cd:0, once:'vet',
+     fn:()=>{
+       if(!G.vetCalled){
+         G.vetCalled=true;
+         let count=0;
+         for(const sh of G.sheep){
+           if(sh.state!=='dead'&&sh.state!=='saved'&&sh.health<20){ sh.health=30; count++; }
+         }
+         showModal('Vet Arrived','The vet reaches you through the drifts. '+(count>0?count+' critical animals are stabilised.':'No critical animals found, but you are not alone.'));
+         updateActions();
+       }
+     }},
+    {id:'wait',   label:'Wait Out Storm',      sub:'Shelter indoors — pray',
+     waves:[1,2,3], cd:0,
+     fn:()=>showModal('Waiting…','You sit by the range as the blizzard howls. Some sheep will pull through on instinct — but not all.')},
+  ];
+
+  for(const a of defs){
+    if(!a.waves.includes(G.wave)) continue;
+    const cd=G.cooldowns[a.id]||0;
+    const onceDisabled=(a.once==='help'&&G.helpCalled)||(a.once==='vet'&&G.vetCalled);
+    const disabled=onceDisabled||cd>0;
+    const sel=G.selAction===a.id;
+    const btn=document.createElement('button');
+    btn.className='abt'+(sel?' sel':'');
+    btn.disabled=disabled;
+    btn.innerHTML=a.label+(sel?' ◄':'')+
+      `<span class="sub">${cd>0?'cooldown '+Math.ceil(cd/60)+'s':a.sub}</span>`;
+    btn.onclick=a.fn;
+    area.appendChild(btn);
+  }
+}
+
+// ── MODAL ────────────────────────────────────────────────
+function showModal(title,body){
+  document.getElementById('m-title').textContent=title;
+  document.getElementById('m-body').textContent=body;
+  document.getElementById('modal-ov').style.display='flex';
+}
+function closeModal(){ document.getElementById('modal-ov').style.display='none'; }
+
+// ── SCREENS ──────────────────────────────────────────────
+function showScreen(name){
+  const s=document.getElementById('screen');
+  s.style.display='flex';
+
+  if(name==='start'){
+    s.innerHTML=`
+      <h1>Save the Sheep</h1>
+      <p class="sub">The Beast of the East</p>
+      <p>A brutal polar storm, Emma, is building from the east. You have precious time to shelter your flock before the blizzard strikes Cumbria.</p>
+      <p><em>Phase 1:</em> Guide your sheepdog to herd sheep into open barns.<br>
+         <em>Phase 2:</em> Battle three waves of storm to keep them alive.<br>
+         <em>Phase 3:</em> Collect the fallen before your remaining flock can roam again. </p>
+      <button class="bbtn" onclick="startP1()">Begin — 24 Feb 2018, 08:00</button>
+      <div id="lb" style="margin-top:16px"></div>`;
+    renderLB();
+  }
+  else if(name==='p2intro'){
+    s.innerHTML=`
+      <h1 style="color:#9ab8d8">The Storm Breaks</h1>
+      <p class="sub" style="color:#6878a0">26 Feb 2018 — The Beast of the East arrives</p>
+      <p>The blizzard has struck. Your dog cannot work in these conditions. You must act as shepherd — deploying feed, digging out buried animals, calling for help.</p>
+      <p>Three waves of increasing severity. Every choice costs time.</p>
+      <button class="bbtn" onclick="startP2()">Face the Storm</button>`;
+  }
+  else if(name==='phase3intro'){
+    s.innerHTML=`
+      <h1>The Storm Passes</h1>
+      <p class="sub">28 Feb 2018 — The fields are still</p>
+      <p>Before your flock can roam again, you must clear the fallen.</p>
+      <button class="bbtn" onclick="startP3()">Begin Recovery</button>`;
+  }
+  else if(name==='end'){
+    showEndScreen();
+  }
+}
+function hideScreen(){ document.getElementById('screen').style.display='none'; }
+
+function showEndScreen(){
+  const s=document.getElementById('screen');
+  s.style.display='flex';
+  const total=G.sheepSaved+G.sheepLost;
+  const pct=total>0?Math.round(G.sheepSaved/total*100):0;
+  let msg='You saved what you could.';
+  if(G.sheepSaved===0)  msg='Not a single animal made it through.';
+  else if(pct>=80)       msg='A remarkable effort — one of the luckier farms.';
+  else if(pct>=50)       msg='Roughly half survived — close to the regional average.';
+  else if(pct<30)        msg='Devastating losses. Many farms across Cumbria fared no better.';
+
+  const recoveredLine=G.recoveredSheep>0
+    ?`<p style="font-size:16px;color:#6a6858;margin-top:4px">+ ${G.recoveredSheep} animals recovered from the field</p>`
+    :'';
+
+  s.innerHTML=`
+    <h1>Storm Passed</h1>
+    <p class="sub">28 Feb 2018 — The Beast retreats</p>
+    <div class="stark">During the Beast of the East 2018,<br>over 250,000 lambs died across the region.</div>
+    <p style="font-size:22px;margin:8px 0">You saved <strong style="color:#78a058">${G.sheepSaved}</strong> sheep — one farm's worth.</p>
+    ${recoveredLine}
+    <p style="color:#888470">${msg}</p>
+    <p style="font-size:13px;color:#585848;max-width:440px;margin-top:6px">In late February and early March 2018, farmers across Wales, England and Scotland reported catastrophic lambing losses. Total agricultural damage exceeded £100 million. Many farms did not recover that season.</p>
+    <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;justify-content:center">
+      <button class="bbtn" onclick="initGame();showScreen('start')">Play Again</button>
+      <button class="bbtn" onclick="startWool()" style="border-color:#686858">See How Wool Is Made →</button>
+    </div>
+    <div id="lb" style="margin-top:12px"></div>`;
+  saveScore(G.sheepSaved);
+  renderLB();
+}
+
+// ── LEADERBOARD ──────────────────────────────────────────
+function saveScore(n){
+  const lb=JSON.parse(localStorage.getItem('bote_lb')||'[]');
+  lb.push({n,d:new Date().toLocaleDateString('en-GB')});
+  lb.sort((a,b)=>b.n-a.n); lb.splice(5);
+  localStorage.setItem('bote_lb',JSON.stringify(lb));
+}
+function renderLB(){
+  const el=document.getElementById('lb'); if(!el) return;
+  const lb=JSON.parse(localStorage.getItem('bote_lb')||'[]');
+  if(!lb.length){ el.innerHTML='<div style="color:#3e3c30;font-size:13px">No scores yet</div>'; return; }
+  el.innerHTML='<div style="color:#585848;font-size:12px;margin-bottom:3px;text-transform:uppercase;letter-spacing:1px">High Scores</div>'+
+    lb.map((s,i)=>`<div>${i+1}. ${s.n} sheep — ${s.d}</div>`).join('');
+}
+
+// ── PROGRESS BAR ─────────────────────────────────────────
+function updateSBar(){
+  const prog=document.getElementById('sprog');
+  if(G.phase==='phase1'){
+    prog.style.width=(G.phaseTimer/7200*100)+'%';
+    prog.style.background='linear-gradient(to right,#3868b0,rgba(190,210,248,0.7))';
+  } else if(G.phase==='phase2'){
+    prog.style.width=(Math.min(1,G.stormTimer/WAVE3)*100)+'%';
+    prog.style.background='linear-gradient(to right,#486898,#a8c0d8)';
+  } else if(G.phase==='phase3'){
+    const dead=G.sheep.filter(s=>s.state==='dead'||s.state==='clearing').length;
+    const cleared=G.deadTotal-dead;
+    prog.style.width=(G.deadTotal>0?(cleared/G.deadTotal)*100:100)+'%';
+    prog.style.background='linear-gradient(to right,#6888a0,#b0c8d8)';
+  }
+}
+
+// ── PHASE CONTROLS ───────────────────────────────────────
+function startP1(){
+  hideScreen(); G.phase='phase1'; G.phaseTimer=0;
+  canvas.style.cursor='default'; tryAudio(); updateUI();
+}
+function startP2(){
+  hideScreen(); G.phase='phase2'; G.wave=1; G.stormTimer=0; updateUI();
+}
+function startP3(){
+  hideScreen(); G.phase='phase3';
+  canvas.style.cursor='crosshair'; updateUI();
+}
+function startWool(){
+  hideScreen();
+  G.wool={
+    stage:1,
+    shearClicks:0,
+    woolPixels:[],
+    washTimer:0, washAnimating:false, washDone:false,
+    waterRipples:[],
+    cardTimer:0, cardAnimating:false, cardDone:false,
+    spinClicks:0, yarnT:0,
+    weaveTimer:0, weaveDone:false,
+  };
+  G.phase='wool';
+  canvas.style.cursor='default';
+}
+function endGame(){
+  // Auto-survive wandering sheep that made it
+  for(const sh of G.sheep){
+    if(sh.state==='wander'||sh.state==='eating') sh.state='survived';
+    if(sh.state==='buried') sh.state='dead', G.sheepLost+=SCNT[sh.type];
+  }
+  const dead=G.sheep.filter(s=>s.state==='dead');
+  if(dead.length===0){
+    G.phase='end'; showScreen('end'); return;
+  }
+  G.deadTotal=dead.length;
+  G.recoveredSheep=0;
+  G.phase3Done=false;
+  G.phase='phase3';
+  showScreen('phase3intro');
+}
+
+// ── INPUT ────────────────────────────────────────────────
+canvas.addEventListener('click',e=>{
+  const r=canvas.getBoundingClientRect();
+  const mx=(e.clientX-r.left)*(W/r.width);
+  const my=(e.clientY-r.top)*(H/r.height);
+
+  if(G.phase==='phase1'){
+    G.dog.tx=mx; G.dog.ty=my;
+    for(const b of G.barns){
+      if(b.full&&dist({x:mx,y:my},b)<22){
+        showModal('Barn Full',b.name+' is at capacity ('+b.sheepCount+'/'+b.capacity+'). Guide your flock to another shelter.');
+        return;
+      }
+    }
+  }
+  else if(G.phase==='phase2') handleP2Click(mx,my);
+  else if(G.phase==='phase3') handleP3Click(mx,my);
+  else if(G.phase==='wool')   handleWoolClick(mx,my);
+});
+
+canvas.addEventListener('mousemove',e=>{
+  const r=canvas.getBoundingClientRect();
+  G.mx=(e.clientX-r.left)*(W/r.width);
+  G.my=(e.clientY-r.top)*(H/r.height);
+});
+
+// ── PHASE 2 CLICK HANDLER ────────────────────────────────
+function handleP2Click(mx,my){
+  if(!G.selAction) return;
+  const ac=G.selAction;
+
+   if(ac==='dig'){
+    let found=false;
+    for(const sh of G.sheep){
+      if(sh.state==='buried'&&dist({x:mx,y:my},sh)<28){
+        const base=G.wave===2?0.68:0.38;
+        const chance=G.helpBoost?Math.min(base+0.24,0.92):base;
+        if(Math.random()<chance){
+          sh.state='wander'; sh.health=Math.max(8,sh.health);
+          showModal('Rescued!','Found '+SCNT[sh.type]+' sheep buried in a drift — weak but alive.');
+        } else {
+          sh.state='dead'; G.sheepLost+=SCNT[sh.type];
+          showModal('Too Late','The sheep did not survive the burial. Exposure was too severe.');
+          updateUI();
+        }
+        G.cooldowns.dig=90; G.selAction=null;
+        canvas.style.cursor='default'; updateActions(); found=true; break;
+      }
+    }
+    if(!found) showModal('Nothing Here','No buried sheep found at that location. Look for the pulsing outlines in the snow.');
+  }
+  else if(ac==='move'){
+    let closest=null, cd=Infinity;
+    for(const sh of G.sheep){
+      if(sh.state==='wander'||sh.state==='eating'){
+        const d=dist({x:mx,y:my},sh);
+        if(d<cd){ cd=d; closest=sh; }
+      }
+    }
+    if(closest&&cd<52){
+      const barn=G.barns.filter(b=>!b.full).sort((a,b2)=>dist(closest,a)-dist(closest,b2))[0];
+      if(barn){
+        saveSheep(closest,barn);
+        showModal('Moved to Barn','Guided '+SCNT[closest.type]+' sheep into '+barn.name+' before conditions worsened.');
+        G.cooldowns.move=600; G.selAction=null;
+        canvas.style.cursor='default'; updateActions();
+      } else {
+        showModal('No Open Barn','All barns are full. Consider building a snow shelter instead.');
+      }
+    } else {
+      showModal('No Flock Nearby','Click closer to a sheep group to move them.');
+    }
+  }
+  else if(ac==='blanket'){
+    let found=false;
+    for(const sh of G.sheep){
+      if(sh.state!=='dead'&&sh.state!=='saved'&&sh.health<40&&dist({x:mx,y:my},sh)<22){
+        sh.health=55;
+        showModal('Blanket Applied','You wrap the animal in a blanket. It rallies.');
+        found=true; break;
+      }
+    }
+    if(!found) showModal('No Weak Animal Here','Find a sheep with critically low health (red bar) and click on it.');
+    G.cooldowns.blanket=200;
+    G.selAction=null; canvas.style.cursor='default'; updateActions();
+  }
+}
+
+// ── PHASE 3 CLICK HANDLER ────────────────────────────────
+function handleP3Click(mx,my){
+  for(const sh of G.sheep){
+    if(sh.state==='dead'&&dist({x:mx,y:my},sh)<18){
+      sh.state='clearing';
+      sh.clearTimer=30;
+      G.recoveredSheep++;
+      updateUI();
+      return;
+    }
+  }
+}
+
+// ── WOOL CLICK HANDLER ───────────────────────────────────
+function handleWoolClick(mx,my){
+  const w=G.wool; if(!w) return;
+
+  if(w.stage===1){
+    // Click zone: large sheep body at (340, 295)
+    const sc=3.5, bw=Math.round(14*sc), bh=Math.round(9*sc);
+    const cx=340,cy=295;
+    if(mx>cx-bw/2-12&&mx<cx+bw/2+12&&my>cy-bh/2-12&&my<cy+bh/2+32){
+      if(w.shearClicks<5){
+        w.shearClicks++;
+        // Eject wool pixels
+        const n=22+Math.random()*14;
+        for(let i=0;i<n;i++){
+          w.woolPixels.push({
+            x:cx+rnd(-bw/2,bw/2),
+            y:cy+rnd(-bh/2,bh/2),
+            vx:rnd(-3.5,3.5),
+            vy:rnd(-2.5,0.5),
+            alpha:1,
+            size:rnd(3,7),
+          });
+        }
+        if(w.shearClicks>=5) setTimeout(()=>{ if(G.wool) G.wool.stage=2; },900);
+      }
+    }
+  }
+  else if(w.stage===2){
+    // WASH button: 312–448, 432–466
+    if(!w.washAnimating&&!w.washDone&&mx>312&&mx<448&&my>432&&my<466){
+      w.washAnimating=true;
+    }
+  }
+  else if(w.stage===3){
+    // CARD button: 312–448, 460–494
+    if(!w.cardAnimating&&!w.cardDone&&mx>312&&mx<448&&my>460&&my<494){
+      w.cardAnimating=true;
+    }
+  }
+  else if(w.stage===4){
+    // Spinning wheel: centre 200, 320, radius ~80
+    if(dist({x:mx,y:my},{x:200,y:320})<82){
+      if(w.spinClicks<8){
+        w.spinClicks++;
+        w.yarnT=w.spinClicks/8;
+        if(w.spinClicks>=8) setTimeout(()=>{ if(G.wool){ G.wool.stage=5; G.wool.weaveTimer=0; }},700);
+      }
+    }
+  }
+  else if(w.stage===5){
+    if(w.weaveDone&&mx>48&&mx<248&&my>450&&my<488){
+      const aud=document.getElementById('bgMusic');
+      if(aud){ aud.pause(); aud.currentTime=0; }
+      G.wool=null;
+      initGame();
+      showScreen('start');
+    }
+  }
+}
+
+// ── COOLDOWNS ────────────────────────────────────────────
+function tickCooldowns(){
+  let changed=false;
+  for(const k in G.cooldowns){
+    if(G.cooldowns[k]>0){ G.cooldowns[k]--; if(G.cooldowns[k]===0) changed=true; }
+  }
+  if(changed) updateActions();
+}
+
+// ── AUDIO ────────────────────────────────────────────────
+function tryAudio(){
+  const a=document.getElementById('bgMusic');
+  if(a.querySelector('source')) a.play().catch(()=>{});
+}
+
+// ── MAIN LOOP ────────────────────────────────────────────
+function loop(){
+  requestAnimationFrame(loop);
+  G.tick++;
+
+  if(G.phase==='phase1')      updatePhase1();
+  else if(G.phase==='phase2'){
+    updateStorm(); updateSheep(); tickCooldowns();
+    if(G.tick%60===0) updateUI();
+  }
+  else if(G.phase==='phase3') updatePhase3();
+  else if(G.phase==='wool')   updateWool();
+
+  ctx.clearRect(0,0,W,H);
+
+  // Wool mini-game: full canvas takeover
+  if(G.phase==='wool'){
+    drawWool();
+    return;
+  }
+
+  // Normal game rendering
+  drawTerrain();
+  drawAtmosphere();
+  drawDrifts();
+  drawBarns();
+  drawSheep();
+  if(G.phase==='phase1') drawDog();
+  drawSnowPart();
+
+  // Phase 3: lingering fog overlay
+  if(G.phase==='phase3'){
+    ctx.fillStyle='rgba(210,225,235,0.55)';
+    ctx.fillRect(0,0,W,H);
+  }
+
+  // Knit dot overlay
+  ctx.fillStyle='rgba(0,0,0,0.03)';
+  for(let y=0;y<H;y+=8){
+    for(let x=(Math.floor(y/8)%2===0?0:4);x<W;x+=8) ctx.fillRect(x,y,1,1);
+  }
+
+  drawHUD();
+  drawCursor();
+  updateSBar();
+}
+
+// ── BOOT ─────────────────────────────────────────────────
+function boot(){
+  initTerrain();
+  buildCache();
+  initGame();
+  showScreen('start');
+  loop();
+}
+
+boot();
+</script>
+</body>
+</html>
